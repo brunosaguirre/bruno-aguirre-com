@@ -1,0 +1,7 @@
+# Ignore frame directories and heavy media/build artifacts
+*_frames/
+frames/
+*.mp4
+*.m4v
+node_modules/
+.DS_Store

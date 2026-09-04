@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inside an LLM: How Large Language Models Work</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            950: '#070a12',
+                            900: '#0f172a',
+                            800: '#1e293b',
+                            700: '#334155'
+                        },
+                        brand: {
+                            cyan: '#06b6d4',
+                            indigo: '#6366f1',
+                            purple: '#a855f7',
+                            amber: '#f59e0b',
+                            emerald: '#10b981',
+                            rose: '#f43f5e'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #070a12;
+            color: #f1f5f9;
+        }
+
+        .code-font {
+            font-family: 'Fira Code', monospace;
+        }
+
+        /* Custom visual cards */
+        .glass-card {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card-hover:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.15);
+        }
+
+        /* Animated glowing gradients */
+        .glow-cyan { box-shadow: 0 0 20px rgba(6, 182, 212, 0.3); }
+        .glow-purple { box-shadow: 0 0 20px rgba(168, 85, 247, 0.3); }
+        .glow-amber { box-shadow: 0 0 20px rgba(245, 158, 11, 0.3); }
+        .glow-emerald { box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
+
+        /* Pulse pipeline animations */
+        @keyframes pulseBeam {
+            0% { transform: translateX(-100%); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateX(100%); opacity: 0; }
+        }
+        .animate-beam {
+            animation: pulseBeam 2.5s infinite linear;
+        }
+
+        /* Custom range slider styling */
+        input[type=range] {
+            accent-color: #f59e0b;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #070a12;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-100 antialiased selection:bg-indigo-500 selection:text-white">
+    <!-- Navigation Header -->
+    <header class="sticky top-0 z-40 border-b border-slate-800/80 backdrop-blur" style="background:rgba(15, 23, 42, 0.9);">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-10">
+        <a href="index.html" class="text-xs font-semibold text-slate-200 hover:text-blue-400">Bruno S. Aguirre</a>
+        <nav class="flex items-center gap-2 text-xs font-medium text-slate-300">
+          <a href="index.html" class="px-2 py-1 rounded hover:bg-slate-800 hover:text-white transition-colors">Home</a>
+          <a href="cv.html" class="px-2 py-1 rounded hover:bg-slate-800 hover:text-white transition-colors">CV</a>
+          <a href="inside_an_llm_interactive_visual_journey.html" class="px-2 py-1 rounded hover:bg-slate-800 hover:text-white transition-colors">LLM Article</a>
+          <a href="hermes_agent_harness_architecture.html" class="px-2 py-1 rounded hover:bg-slate-800 hover:text-white transition-colors">Harness</a>
+          <a href="hermes_agentic_architecture_loop_specification.html" class="px-2 py-1 rounded hover:bg-slate-800 hover:text-white transition-colors">Spec</a>
+        </nav>
+      </div>
+    </header>
+
+    <section class="relative pt-16 pb-16 px-4 md:px-8 max-w-7xl mx-auto text-center overflow-hidden">
+        <!-- Ambient background glows -->
+        <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+        <div class="absolute top-1/3 left-1/4 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs text-indigo-300 font-medium mb-6">
+            <span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
+            Visual Architecture &amp; Mechanics
+        </div>
+
+        <h1 class="text-3xl md:text-5xl lg:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-tight">
+            How a Large Language Model Operates: <br class="hidden sm:inline">
+            <span class="bg-gradient-to-r from-cyan-400 via-indigo-300 to-amber-400 bg-clip-text text-transparent">Words &rarr; Numbers &rarr; Stochastic Roll &rarr; Words</span>
+        </h1>
+
+        <p class="mt-6 text-sm md:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            LLMs do not think, reason, or understand physics. They are continuous high-dimensional vector engines that transform human text into numbers, push those numbers through billions of static matrix calculations, and roll a weighted dice to turn numbers back into text.
+        </p>
+
+        <!-- 3 Big Phase Badges -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto mt-12">
+            <div class="glass-card rounded-2xl p-4 text-left border-l-4 border-cyan-400 flex items-start gap-3">
+                <div class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center font-bold text-sm shrink-0">1</div>
+                <div>
+                    <h3 class="text-xs uppercase font-bold text-cyan-400 tracking-wider">Phase 1</h3>
+                    <p class="text-sm font-semibold text-white mt-0.5">Words &rarr; Numbers</p>
+                    <p class="text-xs text-slate-400 mt-1">Text split into sub-words, assigned unique dictionary IDs, and converted into continuous vector coordinates.</p>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-4 text-left border-l-4 border-purple-400 flex items-start gap-3">
+                <div class="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold text-sm shrink-0">2</div>
+                <div>
+                    <h3 class="text-xs uppercase font-bold text-purple-400 tracking-wider">Phase 2</h3>
+                    <p class="text-sm font-semibold text-white mt-0.5">Numbers &times; Billions of Weights</p>
+                    <p class="text-xs text-slate-400 mt-1">Vectors pass through 32 to 80 Transformer layers where attention connects words and memory cells fire.</p>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-4 text-left border-l-4 border-amber-400 flex items-start gap-3">
+                <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-sm shrink-0">3</div>
+                <div>
+                    <h3 class="text-xs uppercase font-bold text-amber-400 tracking-wider">Phase 3</h3>
+                    <p class="text-sm font-semibold text-white mt-0.5">Numbers &rarr; Words (Dice Roll)</p>
+                    <p class="text-xs text-slate-400 mt-1">Output scores become probabilities. A stochastic dice filter rolls to pick the next word, looping autoregressively.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="pipeline" class="py-12 px-4 md:px-8 max-w-7xl mx-auto scroll-mt-20">
+        <div class="glass-card rounded-3xl p-6 md:p-8 border border-slate-800 shadow-2xl relative overflow-hidden">
+            
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-6 border-b border-slate-800">
+                <div>
+                    <span class="text-xs uppercase tracking-wider font-bold text-cyan-400 flex items-center gap-2">
+                        <i class="fa-solid fa-arrows-left-right"></i>
+                        Complete End-To-End Architecture
+                    </span>
+                    <h2 class="text-xl md:text-2xl font-bold text-white mt-1">The Full Left-to-Right Signal Pipeline</h2>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="animToggleBtn" onclick="togglePipelineAnim()" class="px-4 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-semibold flex items-center gap-2 transition">
+                        <i id="animIcon" class="fa-solid fa-pause text-xs"></i>
+                        <span id="animBtnText">Pause Animation</span>
+                    </button>
+                    <button onclick="resetPipelineAnim()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition" title="Restart Signal">
+                        <i class="fa-solid fa-rotate-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Left-to-Right Animated Flow Visual Block -->
+            <div class="relative bg-slate-950 rounded-2xl p-4 border border-slate-800/80 overflow-x-auto">
+                <div class="min-w-[900px] grid grid-cols-12 gap-3 items-center py-6 px-2 relative">
+                    
+                    <!-- Signal Flow Line Background -->
+                    <div class="absolute top-1/2 left-0 right-0 h-1 bg-slate-800 -translate-y-1/2 z-0"></div>
+                    <div id="signalBeam" class="absolute top-1/2 left-0 h-1 bg-gradient-to-r from-cyan-400 via-purple-500 to-amber-400 -translate-y-1/2 z-0 transition-all duration-300" style="width: 25%;"></div>
+
+                    <!-- Column 1: Words In (Left) -->
+                    <div class="col-span-3 relative z-10 glass-card p-3.5 rounded-xl border-cyan-500/30 shadow-lg">
+                        <div class="text-[10px] uppercase font-bold text-cyan-400 mb-2 flex items-center justify-between">
+                            <span>1. Prompt In (Left)</span>
+                            <i class="fa-solid fa-right-to-bracket text-cyan-400"></i>
+                        </div>
+                        <div class="space-y-1.5">
+                            <div class="bg-slate-900 border border-cyan-500/30 px-2.5 py-1.5 rounded-lg text-xs font-medium text-cyan-200 flex justify-between items-center">
+                                <span>"Why"</span>
+                                <span class="text-[10px] code-font text-slate-400">ID 4839</span>
+                            </div>
+                            <div class="bg-slate-900 border border-cyan-500/30 px-2.5 py-1.5 rounded-lg text-xs font-medium text-cyan-200 flex justify-between items-center">
+                                <span>" is the sky"</span>
+                                <span class="text-[10px] code-font text-slate-400">IDs 318, 262, 6781</span>
+                            </div>
+                            <div class="bg-slate-900 border border-cyan-500/30 px-2.5 py-1.5 rounded-lg text-xs font-medium text-cyan-200 flex justify-between items-center">
+                                <span>" blue?"</span>
+                                <span class="text-[10px] code-font text-slate-400">ID 4171</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Vector Matrix Conversion -->
+                    <div class="col-span-2 relative z-10 glass-card p-3 rounded-xl border-indigo-500/30 text-center">
+                        <div class="text-[10px] uppercase font-bold text-indigo-400 mb-2">2. Dense Vectors</div>
+                        <div class="grid grid-cols-4 gap-1 p-1 bg-slate-900 rounded-lg">
+                            <div class="h-3 bg-indigo-500/80 rounded-[2px] animate-pulse"></div>
+                            <div class="h-3 bg-cyan-400/80 rounded-[2px] animate-pulse"></div>
+                            <div class="h-3 bg-purple-500/80 rounded-[2px] animate-pulse"></div>
+                            <div class="h-3 bg-emerald-400/80 rounded-[2px] animate-pulse"></div>
+                            <div class="h-3 bg-indigo-400/80 rounded-[2px] animate-pulse"></div>
+                            <div class="h-3 bg-amber-400/80 rounded-[2px] animate-pulse"></div>
+                            <div class="h-3 bg-rose-400/80 rounded-[2px] animate-pulse"></div>
+                            <div class="h-3 bg-indigo-500/80 rounded-[2px] animate-pulse"></div>
+                        </div>
+                        <span class="text-[9px] text-slate-400 mt-2 block">4,096 Dim Stream</span>
+                    </div>
+
+                    <!-- Column 3: Stacked Transformer Layers (Center Network) -->
+                    <div class="col-span-3 relative z-10 glass-card p-3.5 rounded-xl border-purple-500/30 text-center">
+                        <div class="text-[10px] uppercase font-bold text-purple-400 mb-2 flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-layer-group"></i>
+                            <span>3. 32-80 Deep Layers</span>
+                        </div>
+                        <div class="flex justify-center items-center gap-2 my-2">
+                            <div class="w-7 h-12 bg-purple-950/80 border border-purple-500/40 rounded-md flex flex-col items-center justify-around p-1">
+                                <div class="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
+                                <div class="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
+                                <div class="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
+                            </div>
+                            <i class="fa-solid fa-angle-right text-xs text-purple-400"></i>
+                            <div class="w-7 h-12 bg-purple-950/80 border border-purple-500/40 rounded-md flex flex-col items-center justify-around p-1">
+                                <div class="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
+                                <div class="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
+                                <div class="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
+                            </div>
+                            <i class="fa-solid fa-angle-right text-xs text-purple-400"></i>
+                            <div class="w-7 h-12 bg-purple-950/80 border border-purple-500/40 rounded-md flex flex-col items-center justify-around p-1">
+                                <div class="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
+                                <div class="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
+                                <div class="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
+                            </div>
+                        </div>
+                        <span class="text-[9px] text-purple-300 block">Self-Attention &amp; Memory</span>
+                    </div>
+
+                    <!-- Column 4: Stochastic Dice Roll Sampler Node -->
+                    <div class="col-span-2 relative z-10 glass-card p-3 rounded-xl border-amber-500/50 bg-amber-950/20 text-center">
+                        <div class="text-[10px] uppercase font-bold text-amber-400 mb-1 flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-dice text-amber-400 animate-bounce"></i>
+                            <span>4. Dice Filter</span>
+                        </div>
+                        <div class="text-[10px] code-font text-amber-200 bg-amber-500/20 py-1 rounded border border-amber-500/30">
+                            Temp T=0.7
+                        </div>
+                        <span class="text-[9px] text-slate-400 mt-1 block">Stochastic Sampling</span>
+                    </div>
+
+                    <!-- Column 5: Words Out (Right) -->
+                    <div class="col-span-2 relative z-10 glass-card p-3 rounded-xl border-emerald-500/40 text-center">
+                        <div class="text-[10px] uppercase font-bold text-emerald-400 mb-2 flex items-center justify-between">
+                            <span>5. Words Out</span>
+                            <i class="fa-solid fa-right-from-bracket text-emerald-400"></i>
+                        </div>
+                        <div id="pipelineOutputWord" class="bg-emerald-950/60 border border-emerald-500/40 py-2 px-1 rounded-lg text-xs font-bold text-emerald-300 code-font shadow-lg">
+                            "Sunlight"
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <p class="text-xs text-slate-400 mt-4 text-center">
+                Signals originate as raw prompt strings on the far left, convert to numbers, ripple through 32 to 80 Transformer layers, pass through a stochastic probability filter, and emerge as output words on the right.
+            </p>
+        </div>
+    </section>
+
+    <section id="phase1" class="py-16 px-4 md:px-8 max-w-7xl mx-auto scroll-mt-20">
+        <div class="flex items-center gap-3 mb-8">
+            <div class="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center font-bold text-lg">1</div>
+            <div>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-white">Phase 1: Words &rarr; Numbers</h2>
+                <p class="text-xs text-slate-400">Ingestion: Translating String Text into Continuous Vector Coordinates</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Step 1.1: Tokenization Split Card -->
+            <div class="glass-card glass-card-hover rounded-2xl p-6 border-slate-800 flex flex-col justify-between">
+                <div>
+                    <div class="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-sm font-bold mb-4">A</div>
+                    <h3 class="text-base font-bold text-white mb-2">1. Sub-Word Tokenization</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Computers cannot process string letters directly. First, a tokenizer slices words into sub-word chunks called <strong class="text-cyan-300">tokens</strong> using algorithms like Byte-Pair Encoding (BPE).
+                    </p>
+
+                    <!-- Interactive Token Splitter Visual -->
+                    <div class="mt-6 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                        <label class="text-[10px] uppercase font-bold text-slate-400 block mb-2">Raw Text String:</label>
+                        <div class="text-sm font-semibold text-white bg-slate-900 px-3 py-2 rounded-lg border border-slate-800 mb-4">
+                            "Why is the sky blue?"
+                        </div>
+
+                        <label class="text-[10px] uppercase font-bold text-cyan-400 block mb-2">Sliced Sub-Word Token Chips:</label>
+                        <div class="flex flex-wrap gap-1.5 code-font text-xs">
+                            <span class="px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">"Why"</span>
+                            <span class="px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">" is"</span>
+                            <span class="px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">" the"</span>
+                            <span class="px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">" sky"</span>
+                            <span class="px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">" blue"</span>
+                            <span class="px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">"?"</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="text-[10px] text-slate-500 mt-4 block">Result: Text cut into discrete, measurable units</span>
+            </div>
+
+            <!-- Step 1.2: Vocabulary ID Lookup -->
+            <div class="glass-card glass-card-hover rounded-2xl p-6 border-slate-800 flex flex-col justify-between">
+                <div>
+                    <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm font-bold mb-4">B</div>
+                    <h3 class="text-base font-bold text-white mb-2">2. Dictionary ID Lookup</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Every token maps directly to a unique integer index in the model's fixed vocabulary dictionary (containing 32,000 to 128,000 cataloged words).
+                    </p>
+
+                    <!-- Vocabulary Mapping Visual Table -->
+                    <div class="mt-6 bg-slate-950 p-4 rounded-xl border border-slate-800 code-font text-xs space-y-2">
+                        <div class="flex justify-between text-slate-400 border-b border-slate-800 pb-1.5 text-[10px]">
+                            <span>Token String</span>
+                            <span>Dictionary Integer ID</span>
+                        </div>
+                        <div class="flex justify-between text-slate-200">
+                            <span class="text-cyan-300">"Why"</span>
+                            <span class="text-indigo-400 font-bold">4839</span>
+                        </div>
+                        <div class="flex justify-between text-slate-200">
+                            <span class="text-cyan-300">" is"</span>
+                            <span class="text-indigo-400 font-bold">318</span>
+                        </div>
+                        <div class="flex justify-between text-slate-200">
+                            <span class="text-cyan-300">" the"</span>
+                            <span class="text-indigo-400 font-bold">262</span>
+                        </div>
+                        <div class="flex justify-between text-slate-200">
+                            <span class="text-cyan-300">" sky"</span>
+                            <span class="text-indigo-400 font-bold">6781</span>
+                        </div>
+                        <div class="flex justify-between text-slate-200">
+                            <span class="text-cyan-300">" blue?"</span>
+                            <span class="text-indigo-400 font-bold">4171</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="text-[10px] text-slate-500 mt-4 block">Result: [4839, 318, 262, 6781, 4171]</span>
+            </div>
+
+            <!-- Step 1.3: Vector Embeddings & Positional Waves -->
+            <div class="glass-card glass-card-hover rounded-2xl p-6 border-slate-800 flex flex-col justify-between">
+                <div>
+                    <div class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center text-sm font-bold mb-4">C</div>
+                    <h3 class="text-base font-bold text-white mb-2">3. Continuous Vectors &amp; Waves</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Integer IDs cannot undergo math operations. They are converted into dense streams of <strong>4,096 numbers</strong> (embeddings) blended with sinusoidal wave signals (positional encodings) to track word order.
+                    </p>
+
+                    <!-- High Dim Coordinates Visual -->
+                    <div class="mt-6 bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                        <div>
+                            <span class="text-[10px] uppercase font-bold text-purple-400 block mb-1">Vector Coordinates (4,096 Dim):</span>
+                            <div class="bg-slate-900 p-2 rounded text-[11px] code-font text-emerald-400 border border-slate-800 overflow-x-auto">
+                                [+0.82, -0.14, +0.95, +0.02, -0.61, ...]
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 bg-purple-950/30 p-2.5 rounded-lg border border-purple-500/30 text-xs text-purple-200">
+                            <i class="fa-solid fa-wave-square text-purple-400"></i>
+                            <span class="text-[11px]">Positional Signal Waves Blended In</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="text-[10px] text-slate-500 mt-4 block">Result: High-dimensional geometry ready for calculation</span>
+            </div>
+
+        </div>
+    </section>
+
+    <section id="phase2" class="py-16 px-4 md:px-8 max-w-7xl mx-auto scroll-mt-20">
+        <div class="flex items-center gap-3 mb-8">
+            <div class="w-10 h-10 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center font-bold text-lg">2</div>
+            <div>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-white">Phase 2: Numbers Through Billions of Weights</h2>
+                <p class="text-xs text-slate-400">Deep Transformer Layers: Calculating Word Connections &amp; Associative Memory</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Left 7 Cols: Interactive Self-Attention Graph Visualizer -->
+            <div class="lg:col-span-7 glass-card rounded-3xl p-6 border-slate-800 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-xs uppercase font-bold text-purple-400 flex items-center gap-2">
+                            <i class="fa-solid fa-diagram-project"></i>
+                            Self-Attention Mechanics
+                        </span>
+                        <span class="text-[10px] code-font bg-purple-950 text-purple-300 px-2.5 py-1 rounded-full border border-purple-500/30">Interactive Attention Matrix</span>
+                    </div>
+
+                    <h3 class="text-lg font-bold text-white mb-2">How Words Look at Other Words</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-6">
+                        Click on any word below to see how the model calculates attention weights connecting it to other prompt words (e.g., how <strong class="text-cyan-300">"blue"</strong> directs strongest attention toward <strong class="text-purple-300">"sky"</strong> and <strong class="text-cyan-300">"Why"</strong>).
+                    </p>
+
+                    <!-- Interactive Word Selection & Connection Diagram -->
+                    <div class="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-6">
+                        <div class="flex flex-wrap justify-center gap-3">
+                            <button onclick="selectAttentionWord('Why')" class="attn-btn px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-sm font-semibold text-slate-300 hover:border-purple-500 transition" data-word="Why">Why</button>
+                            <button onclick="selectAttentionWord('is')" class="attn-btn px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-sm font-semibold text-slate-300 hover:border-purple-500 transition" data-word="is">is</button>
+                            <button onclick="selectAttentionWord('the')" class="attn-btn px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-sm font-semibold text-slate-300 hover:border-purple-500 transition" data-word="the">the</button>
+                            <button onclick="selectAttentionWord('sky')" class="attn-btn px-4 py-2 rounded-xl border border-purple-500 bg-purple-900/40 text-sm font-semibold text-purple-200 transition" data-word="sky">sky</button>
+                            <button onclick="selectAttentionWord('blue')" class="attn-btn px-4 py-2 rounded-xl border border-cyan-400 bg-cyan-950 text-sm font-bold text-cyan-300 ring-2 ring-cyan-400/50 transition" data-word="blue">blue</button>
+                        </div>
+
+                        <!-- Connection Intensity Indicators -->
+                        <div id="attentionStrengthBox" class="space-y-2 pt-4 border-t border-slate-800">
+                            <!-- Injected dynamically via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex items-center justify-between text-[11px] text-slate-400">
+                    <span>Self-attention replaces hard rules with dynamic contextual correlations.</span>
+                </div>
+            </div>
+
+            <!-- Right 5 Cols: Feed-Forward Memory Expansion & Layer Stack -->
+            <div class="lg:col-span-5 space-y-6">
+                
+                <!-- Feed-Forward Pattern Memory -->
+                <div class="glass-card rounded-3xl p-6 border-slate-800">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-bold mb-3">
+                        <i class="fa-solid fa-brain"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-white mb-2">Feed-Forward Pattern Memory</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        While Attention connects active prompt words, Feed-Forward layers act as a massive static dictionary encyclopedia. The vector expands 4x in size to fire stored pre-training knowledge.
+                    </p>
+
+                    <div class="mt-4 bg-slate-950 p-4 rounded-xl border border-slate-800 text-center space-y-2">
+                        <div class="text-xs code-font text-slate-400">Vector Dimension Expansion</div>
+                        <div class="flex items-center justify-center gap-2 text-sm font-bold">
+                            <span class="text-cyan-400">4,096 Dimensions</span>
+                            <i class="fa-solid fa-arrow-right text-slate-600"></i>
+                            <span class="text-emerald-400">16,384 Dimensions</span>
+                        </div>
+                        <p class="text-[10px] text-slate-500">Triggers static knowledge memory cells learned during web training</p>
+                    </div>
+                </div>
+
+                <!-- Layer Stack Visualization Card -->
+                <div class="glass-card rounded-3xl p-6 border-slate-800">
+                    <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group text-purple-400"></i>
+                        Stacking 32 to 80 Transformer Layers
+                    </h3>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-4">
+                        Each layer refines the numbers. Early layers handle basic syntax; middle layers handle semantics; deep layers form high-level abstract predictions.
+                    </p>
+                    <div class="space-y-1.5 code-font text-[11px]">
+                        <div class="p-2 rounded bg-slate-900 border border-slate-800 text-purple-300 flex justify-between">
+                            <span>Layer 80 (Deepest)</span>
+                            <span class="text-slate-500">High-level Reasoning State</span>
+                        </div>
+                        <div class="p-2 rounded bg-slate-900 border border-slate-800 text-slate-400 text-center">... 78 Intermediary Layers ...</div>
+                        <div class="p-2 rounded bg-slate-900 border border-slate-800 text-cyan-300 flex justify-between">
+                            <span>Layer 01 (Initial)</span>
+                            <span class="text-slate-500">Grammar &amp; Syntax Signals</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <section id="phase3" class="py-16 px-4 md:px-8 max-w-7xl mx-auto scroll-mt-20">
+        <div class="flex items-center gap-3 mb-8">
+            <div class="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center font-bold text-lg">3</div>
+            <div>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-white">Phase 3: Numbers &rarr; Stochastic Dice Roll &rarr; Words</h2>
+                <p class="text-xs text-slate-400">Output Logits, Probability Distributions, and the Temperature Dice Sampler</p>
+            </div>
+        </div>
+
+        <!-- Interactive Temperature & Stochastic Sampler Simulator -->
+        <div class="glass-card rounded-3xl p-6 md:p-8 border-slate-800 shadow-2xl">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                
+                <!-- Controls & Explanation (5 Cols) -->
+                <div class="lg:col-span-5 space-y-6">
+                    <div>
+                        <span class="text-xs uppercase font-bold text-amber-400 flex items-center gap-2">
+                            <i class="fa-solid fa-dice-five"></i>
+                            Interactive Stochastic Simulator
+                        </span>
+                        <h3 class="text-xl font-bold text-white mt-1">Where Randomness Enters</h3>
+                        <p class="text-xs text-slate-300 leading-relaxed mt-2">
+                            After 80 layers, the LLM produces raw score numbers (logits) for every word in its vocabulary. The <strong>Temperature Knob</strong> controls how flat or sharp the probabilities become before rolling a weighted dice to pick the winner!
+                        </p>
+                    </div>
+
+                    <!-- Temperature Slider Controls -->
+                    <div class="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-bold text-slate-200">Temperature Knob (T):</label>
+                            <span id="tempValueDisplay" class="text-sm font-bold code-font text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded border border-amber-500/30">0.7 (Balanced)</span>
+                        </div>
+                        
+                        <input id="temperatureSlider" type="range" min="0.1" max="1.5" step="0.1" value="0.7" oninput="updateTemperatureSimulator(this.value)" class="w-full h-2 bg-slate-800 rounded-lg cursor-pointer">
+
+                        <div class="flex justify-between text-[10px] text-slate-400">
+                            <span>0.1 (Strict / Predictable)</span>
+                            <span>0.7 (Default)</span>
+                            <span>1.5 (Creative / Random)</span>
+                        </div>
+                    </div>
+
+                    <button onclick="rollStochasticDice()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition">
+                        <i class="fa-solid fa-dice text-base"></i>
+                        <span>Roll Weighted Dice Now!</span>
+                    </button>
+                </div>
+
+                <!-- Probability Bar Chart & Selection Outcome (7 Cols) -->
+                <div class="lg:col-span-7 bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-6">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-300">Next Token Probability Distribution</h4>
+                        <span id="selectedTokenDisplay" class="text-xs font-bold code-font text-emerald-400 bg-emerald-950 px-2.5 py-1 rounded border border-emerald-500/30">Winner: "Sunlight"</span>
+                    </div>
+
+                    <!-- Interactive Bar Chart Stack -->
+                    <div id="probBarContainer" class="space-y-4">
+                        <!-- Injected dynamically via JS -->
+                    </div>
+
+                    <div class="p-3 bg-slate-900 rounded-xl border border-slate-800/80 text-[11px] text-slate-400 flex items-center gap-3">
+                        <i class="fa-solid fa-circle-info text-amber-400 text-base shrink-0"></i>
+                        <p id="stochasticExplanationText">
+                            At Temperature 0.7, highest scoring token ("Sunlight") has a 68% chance of winning, but lower candidates still have a valid dice roll probability.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <section id="parrot" class="py-16 px-4 md:px-8 max-w-7xl mx-auto scroll-mt-20">
+        <div class="glass-card rounded-3xl p-8 border-slate-800 shadow-2xl relative overflow-hidden">
+            
+            <div class="max-w-3xl mb-10">
+                <span class="text-xs uppercase font-bold text-rose-400 flex items-center gap-2">
+                    <i class="fa-solid fa-crow"></i>
+                    Reality vs. Statistical Co-occurrence
+                </span>
+                <h2 class="text-2xl md:text-4xl font-extrabold text-white mt-1">Why an LLM is a "Stochastic Parrot"</h2>
+                <p class="text-sm text-slate-300 leading-relaxed mt-3">
+                    To demonstrate why LLMs lack comprehension, consider what happens when a model generates a response to <em>"Why is the sky blue?"</em>:
+                </p>
+            </div>
+
+            <!-- Side by Side Visual Comparison -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+                
+                <!-- Left Card: Real Physical World Science -->
+                <div class="bg-slate-950 p-6 rounded-2xl border border-cyan-500/30 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-sm font-bold">
+                                <i class="fa-solid fa-atom"></i>
+                            </div>
+                            <h3 class="text-base font-bold text-white">Real Physical World (Rayleigh Scattering)</h3>
+                        </div>
+
+                        <p class="text-xs text-slate-300 leading-relaxed mb-4">
+                            Sunlight contains all color wavelengths. When light enters Earth's atmosphere, high-frequency short blue light waves collide with <strong>Nitrogen ($N_2$) and Oxygen ($O_2$) gas molecules</strong> and scatter in every direction.
+                        </p>
+
+                        <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-cyan-300 font-bold">Short Blue Waves:</span>
+                                <span class="text-slate-400">Scatter strongly off gas molecules</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-rose-400 font-bold">Long Red Waves:</span>
+                                <span class="text-slate-400">Pass straight through atmosphere</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-slate-800 text-[11px] text-cyan-300 font-semibold">
+                        Requires grounded physical atmospheric physics
+                    </div>
+                </div>
+
+                <!-- Right Card: The LLM Stochastic Parrot Engine -->
+                <div class="bg-slate-950 p-6 rounded-2xl border border-rose-500/30 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center text-sm font-bold">
+                                <i class="fa-solid fa-copy"></i>
+                            </div>
+                            <h3 class="text-base font-bold text-white">LLM Mechanics (Stochastic Parrot)</h3>
+                        </div>
+
+                        <p class="text-xs text-slate-300 leading-relaxed mb-4">
+                            The LLM has no concept of light waves, gas, or skies. If it generates: <em>"The sky is blue because water vapor scatters light"</em>, it outputs this simply because words like <em>"water"</em>, <em>"vapor"</em>, and <em>"blue"</em> co-occur near each other on millions of web pages.
+                        </p>
+
+                        <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-rose-300 font-bold">Zero Physical Understanding:</span>
+                                <span class="text-slate-400">No sensor or world model</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-amber-300 font-bold">Geometric Trajectory:</span>
+                                <span class="text-slate-400">Matches statistical paths in weights</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-slate-800 text-[11px] text-rose-300 font-semibold">
+                        Regurgitates high-probability language patterns
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Summary Banner -->
+            <div class="mt-8 bg-slate-900/90 p-5 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-quote-left"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-bold text-white">Core Insight</h4>
+                        <p class="text-xs text-slate-300">Language models synthesize syntactic coherence via mathematical probabilities, not semantic comprehension.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <footer class="border-t border-slate-800 py-8 px-4 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p>LLM Architecture &amp; Neural Activation Visual Engine</p>
+            <p class="code-font">Words &rarr; Numbers &rarr; Weights &rarr; Words</p>
+        </div>
+    </footer>
+
+    <script>
+        // --- PIPELINE ANIMATION LOGIC ---
+        let animInterval = null;
+        let isAnimRunning = true;
+        let beamPosition = 0;
+
+        function togglePipelineAnim() {
+            isAnimRunning = !isAnimRunning;
+            const btnText = document.getElementById('animBtnText');
+            const icon = document.getElementById('animIcon');
+            if (isAnimRunning) {
+                btnText.innerText = "Pause Animation";
+                icon.className = "fa-solid fa-pause text-xs";
+            } else {
+                btnText.innerText = "Resume Signal";
+                icon.className = "fa-solid fa-play text-xs";
+            }
+        }
+
+        function resetPipelineAnim() {
+            beamPosition = 0;
+            document.getElementById('signalBeam').style.width = '0%';
+        }
+
+        setInterval(() => {
+            if (isAnimRunning) {
+                beamPosition = (beamPosition + 5) % 105;
+                document.getElementById('signalBeam').style.width = beamPosition + '%';
+
+                // Cycle dynamic output words
+                if (beamPosition > 90) {
+                    const sampleOutputs = ['"Sunlight"', '"Rayleigh"', '"Scattering"', '"Nitrogen"'];
+                    const chosen = sampleOutputs[Math.floor(Math.random() * sampleOutputs.length)];
+                    const wordEl = document.getElementById('pipelineOutputWord');
+                    if (wordEl) wordEl.innerText = chosen;
+                }
+            }
+        }, 150);
+
+        // --- ATTENTION MATRIX VISUALIZER LOGIC ---
+        const attentionMap = {
+            'Why': [
+                { token: '"Why"', weight: '95%', color: 'bg-purple-500' },
+                { token: '"blue?"', weight: '60%', color: 'bg-cyan-500' },
+                { token: '"sky"', weight: '40%', color: 'bg-indigo-500' }
+            ],
+            'is': [
+                { token: '"is"', weight: '90%', color: 'bg-purple-500' },
+                { token: '"Why"', weight: '30%', color: 'bg-cyan-500' }
+            ],
+            'the': [
+                { token: '"sky"', weight: '85%', color: 'bg-purple-500' },
+                { token: '"the"', weight: '70%', color: 'bg-cyan-500' }
+            ],
+            'sky': [
+                { token: '"blue"', weight: '98%', color: 'bg-purple-500' },
+                { token: '"sky"', weight: '80%', color: 'bg-cyan-500' },
+                { token: '"Why"', weight: '45%', color: 'bg-indigo-500' }
+            ],
+            'blue': [
+                { token: '"sky"', weight: '96%', color: 'bg-purple-500' },
+                { token: '"Why"', weight: '75%', color: 'bg-cyan-500' },
+                { token: '"is the"', weight: '30%', color: 'bg-indigo-500' }
+            ]
+        };
+
+        function selectAttentionWord(word) {
+            // Highlight active button
+            document.querySelectorAll('.attn-btn').forEach(btn => {
+                if (btn.getAttribute('data-word') === word) {
+                    btn.className = "attn-btn px-4 py-2 rounded-xl border border-cyan-400 bg-cyan-950 text-sm font-bold text-cyan-300 ring-2 ring-cyan-400/50 transition";
+                } else {
+                    btn.className = "attn-btn px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-sm font-semibold text-slate-300 hover:border-purple-500 transition";
+                }
+            });
+
+            // Render strength bars
+            const box = document.getElementById('attentionStrengthBox');
+            const data = attentionMap[word] || attentionMap['blue'];
+
+            box.innerHTML = `
+                <div class="text-[11px] font-bold text-slate-300 mb-2">Attention connection weight from "${word}":</div>
+                ${data.map(item => `
+                    <div>
+                        <div class="flex justify-between text-xs mb-1 code-font">
+                            <span class="text-cyan-300">${item.token}</span>
+                            <span class="text-purple-400 font-bold">${item.weight}</span>
+                        </div>
+                        <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+                            <div class="${item.color} h-full rounded-full transition-all duration-500" style="width: ${item.weight}"></div>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        // --- TEMPERATURE & STOCHASTIC SAMPLER SIMULATOR LOGIC ---
+        const baseCandidates = [
+            { token: '"Sunlight"', score: 68 },
+            { token: '"The"', score: 18 },
+            { token: '"Because"', score: 9 },
+            { token: '"Air"', score: 5 }
+        ];
+
+        let currentTemp = 0.7;
+
+        function updateTemperatureSimulator(val) {
+            currentTemp = parseFloat(val);
+            const display = document.getElementById('tempValueDisplay');
+            if (currentTemp < 0.4) display.innerText = `${currentTemp} (Deterministic)`;
+            else if (currentTemp <= 0.9) display.innerText = `${currentTemp} (Balanced)`;
+            else display.innerText = `${currentTemp} (Creative / Random)`;
+
+            renderProbabilities();
+        }
+
+        function renderProbabilities() {
+            const container = document.getElementById('probBarContainer');
+            
+            // Adjust scores based on temperature formula simulation
+            const adjusted = baseCandidates.map(c => {
+                let p = Math.pow(c.score, 1 / currentTemp);
+                return { token: c.token, rawP: p };
+            });
+
+            const sumP = adjusted.reduce((acc, curr) => acc + curr.rawP, 0);
+            const normalized = adjusted.map(c => ({
+                token: c.token,
+                pct: Math.round((c.rawP / sumP) * 100)
+            }));
+
+            container.innerHTML = normalized.map((item, idx) => `
+                <div>
+                    <div class="flex justify-between text-xs mb-1 code-font">
+                        <span class="font-bold text-slate-200">${item.token}</span>
+                        <span class="text-amber-400">${item.pct}% chance</span>
+                    </div>
+                    <div class="w-full bg-slate-900 h-3.5 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                        <div class="h-full rounded-full ${idx === 0 ? 'bg-gradient-to-r from-emerald-500 to-cyan-400' : 'bg-gradient-to-r from-indigo-500 to-purple-500'} transition-all duration-300" style="width: ${item.pct}%"></div>
+                    </div>
+                </div>
+            `).join('');
+
+            const expl = document.getElementById('stochasticExplanationText');
+            if (currentTemp < 0.4) {
+                expl.innerText = `At Low Temperature (${currentTemp}), probabilities sharpen dramatically. The #1 token "${normalized[0].token}" dominates, resulting in deterministic responses.`;
+            } else if (currentTemp <= 0.9) {
+                expl.innerText = `At Balanced Temperature (${currentTemp}), top token "${normalized[0].token}" is favored, but alternative tokens retain valid probabilities when rolling the dice.`;
+            } else {
+                expl.innerText = `At High Temperature (${currentTemp}), the probability distribution flattens! Lower-scoring candidates gain significant dice roll odds.`;
+            }
+        }
+
+        function rollStochasticDice() {
+            const container = document.getElementById('probBarContainer');
+            const bars = container.querySelectorAll('.rounded-full');
+            
+            // Flash animation to simulate rolling dice
+            bars.forEach(b => b.classList.add('animate-pulse'));
+            
+            setTimeout(() => {
+                bars.forEach(b => b.classList.remove('animate-pulse'));
+                
+                // Pick based on temperature
+                const selectedEl = document.getElementById('selectedTokenDisplay');
+                if (currentTemp < 0.4) {
+                    selectedEl.innerText = 'Winner: "Sunlight" (100% Pick)';
+                } else {
+                    const winners = ['"Sunlight"', '"Sunlight"', '"The"', '"Because"'];
+                    const pick = winners[Math.floor(Math.random() * winners.length)];
+                    selectedEl.innerText = `Dice Roll Result: ${pick}`;
+                }
+            }, 400);
+        }
+
+        // Initialize default view states on window load
+        window.onload = function() {
+            selectAttentionWord('blue');
+            renderProbabilities();
+        };
+    </script>
+<div class="max-w-6xl mx-auto px-4 py-4">
+<div class="flex flex-wrap gap-2 text-sm">
+<a href="hermes_agent_harness_architecture.html" class="px-3 py-1.5 rounded border border-navy-200 text-navy-800 hover:border-azure-400 hover:text-azure-700 transition-colors">Hermes Agent Harness →</a>
+<a href="hermes_agentic_architecture_loop_specification.html" class="px-3 py-1.5 rounded border border-navy-200 text-navy-800 hover:border-azure-400 hover:text-azure-700 transition-colors">Hermes Architecture Spec →</a>
+</div></div>
+</body>
+</html>

@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hermes Agent Harness - LangGraph + Pydantic Architecture</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            900: '#14532d',
+                        },
+                        langgraph: {
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            900: '#1e3a8a',
+                        },
+                        pydantic: {
+                            500: '#e11d48',
+                            600: '#be123c',
+                            900: '#881337',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        @keyframes pulse-border {
+            0%, 100% { border-color: rgba(59, 130, 246, 0.4); }
+            50% { border-color: rgba(59, 130, 246, 1); }
+        }
+        .active-node {
+            border: 2px solid #60a5fa;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        }
+
+        @keyframes glow-shield {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(225, 29, 72, 0.5)); }
+            50% { transform: scale(1.08); filter: drop-shadow(0 0 8px rgba(225, 29, 72, 0.9)); }
+        }
+        .shield-pulse {
+            animation: glow-shield 1.5s infinite ease-in-out;
+        }
+
+        .code-block {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #090d16;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans bg-slate-950 text-slate-200 antialiased overflow-hidden">
+    <!-- Navigation Header -->
+    <header class="sticky top-0 z-40 border-b border-slate-800/80 backdrop-blur" style="background:rgba(15, 23, 42, 0.9);">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-10">
+        <a href="index.html" class="text-xs font-semibold text-slate-200 hover:text-blue-400">Bruno S. Aguirre</a>
+        <nav class="flex items-center gap-2 text-xs font-medium text-slate-300">
+          <a href="index.html" class="px-2 py-1 rounded hover:bg-slate-800 hover:text-white transition-colors">Home</a>
+          <a href="cv.html" class="px-2 py-1 rounded hover:bg-slate-800 hover:text-white transition-colors">CV</a>
+          <a href="inside_an_llm_interactive_visual_journey.html" class="px-2 py-1 rounded hover:bg-slate-800 hover:text-white transition-colors">LLM Article</a>
+          <a href="hermes_agent_harness_architecture.html" class="px-2 py-1 rounded hover:bg-slate-800 hover:text-white transition-colors">Harness</a>
+          <a href="hermes_agentic_architecture_loop_specification.html" class="px-2 py-1 rounded hover:bg-slate-800 hover:text-white transition-colors">Spec</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Main Dynamic Content Area -->
+    <main class="flex-1 relative overflow-hidden flex flex-col">
+
+        <!-- TAB 1: ARCHITECTURE DIAGRAM -->
+        <div id="tab-diagram" class="tab-content h-full flex flex-col lg:flex-row overflow-hidden">
+            <!-- Left Canvas Area (Visual Graph) -->
+            <div class="flex-1 bg-slate-950 p-6 overflow-y-auto relative flex flex-col justify-between">
+                
+                <div class="absolute top-4 left-4 z-10 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-lg p-3 max-w-sm text-xs shadow-lg">
+                    <span class="font-bold text-slate-200 flex items-center space-x-2 mb-1">
+                        <i class="fa-solid fa-circle-info text-blue-400"></i>
+                        <span>Interactive Architectural Canvas</span>
+                    </span>
+                    <p class="text-slate-400">Click on any node, edge router, or Pydantic shield icon below to inspect its schema rules, state mutations, and role in the harness.</p>
+                </div>
+
+                <!-- Graph Legend -->
+                <div class="absolute top-4 right-4 z-10 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-lg p-3 text-xs flex flex-col space-y-1.5 shadow-lg">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded bg-blue-600 inline-block"></span>
+                        <span class="text-slate-300">LangGraph Worker Node</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded bg-purple-600 inline-block"></span>
+                        <span class="text-slate-300">Evaluator / Judge Node</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded bg-amber-600 inline-block"></span>
+                        <span class="text-slate-300">Conditional Edge Router</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-shield-halved text-rose-500"></i>
+                        <span class="text-slate-300">Pydantic Validation Guardrail</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded border border-dashed border-purple-500 inline-block"></span>
+                        <span class="text-slate-300">Critique Feedback Loop</span>
+                    </div>
+                </div>
+
+                <!-- Node Diagram Canvas Container -->
+                <div class="max-w-4xl mx-auto w-full my-auto py-12 flex flex-col items-center justify-center space-y-4 relative">
+                    
+                    <!-- 1. ENTRYPOINT -->
+                    <div data-node-id="start" onclick="selectElement('start')" class="cursor-pointer group relative bg-emerald-950/80 border-2 border-emerald-500/80 hover:border-emerald-400 rounded-full px-5 py-2 flex items-center space-x-2 shadow-lg hover:scale-105 transition-all">
+                        <i class="fa-solid fa-user text-emerald-400"></i>
+                        <span class="font-bold text-xs text-emerald-200">ENTRYPOINT: User Prompt Input</span>
+                    </div>
+
+                    <div class="h-4 w-0.5 bg-slate-700"></div>
+
+                    <!-- Guardrail 1: User Request -->
+                    <div data-node-id="guard-input" onclick="selectElement('guard-input')" class="cursor-pointer group bg-rose-950/90 border border-rose-500/60 rounded-full px-4 py-1 flex items-center space-x-2 text-xs hover:border-rose-400 shadow-md transition-all hover:scale-105">
+                        <i class="fa-solid fa-shield-halved text-rose-400 shield-pulse"></i>
+                        <span class="font-mono text-rose-200 text-[11px]">V1: UserRequestSchema Validation</span>
+                    </div>
+
+                    <div class="h-4 w-0.5 bg-slate-700"></div>
+
+                    <!-- NODE 1: PARSER -->
+                    <div data-node-id="node-parser" onclick="selectElement('node-parser')" class="cursor-pointer group relative bg-slate-900 border-2 border-blue-500/60 hover:border-blue-400 rounded-xl p-3 w-80 text-center shadow-xl hover:scale-105 transition-all">
+                        <div class="text-[10px] text-blue-400 font-mono mb-0.5">LANGGRAPH NODE 1</div>
+                        <div class="font-bold text-xs text-slate-100 flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-filter text-blue-400"></i>
+                            <span>Receive & Sanitize Prompt</span>
+                        </div>
+                    </div>
+
+                    <div class="h-4 w-0.5 bg-slate-700"></div>
+
+                    <!-- Guardrail 2: HermesState Integrity -->
+                    <div data-node-id="guard-state-init" onclick="selectElement('guard-state-init')" class="cursor-pointer group bg-rose-950/90 border border-rose-500/60 rounded-full px-4 py-1 flex items-center space-x-2 text-xs hover:border-rose-400 shadow-md transition-all hover:scale-105">
+                        <i class="fa-solid fa-shield-halved text-rose-400"></i>
+                        <span class="font-mono text-rose-200 text-[11px]">V2: HermesState Contract Check</span>
+                    </div>
+
+                    <div class="h-4 w-0.5 bg-slate-700"></div>
+
+                    <!-- NODE 2: REASONER -->
+                    <div data-node-id="node-reasoner" onclick="selectElement('node-reasoner')" class="cursor-pointer group relative bg-slate-900 border-2 border-blue-500/80 hover:border-blue-400 rounded-xl p-3.5 w-96 text-center shadow-xl hover:scale-105 transition-all active-node">
+                        <div class="text-[10px] text-blue-400 font-mono mb-0.5">LANGGRAPH NODE 2 (WORKER)</div>
+                        <div class="font-bold text-sm text-slate-100 flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-brain text-blue-400"></i>
+                            <span>LLM Reasoner (Worker Model)</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 mt-1">Evaluates state context, tool schema, memory & previous critiques</div>
+                    </div>
+
+                    <div class="h-4 w-0.5 bg-slate-700"></div>
+
+                    <!-- CONDITIONAL ROUTER EDGE 1 -->
+                    <div data-node-id="edge-conditional" onclick="selectElement('edge-conditional')" class="cursor-pointer group bg-amber-950/90 border-2 border-amber-500/80 rounded-lg px-4 py-1.5 text-center hover:border-amber-400 transition-all shadow-md">
+                        <div class="text-[10px] text-amber-400 font-mono uppercase tracking-wider">Tool Decision Router</div>
+                        <div class="text-xs font-bold text-amber-200">Requires External Tool Execution?</div>
+                    </div>
+
+                    <!-- BRANCH: TOOLS VS SYNTHESIS & EVALUATION -->
+                    <div class="w-full grid grid-cols-1 md:grid-cols-2 gap-8 pt-2">
+
+                        <!-- LEFT BRANCH: TOOL EXECUTION LOOP -->
+                        <div class="flex flex-col items-center space-y-3 pr-2 border-r-0 md:border-r border-slate-800">
+                            <div class="text-xs text-amber-400 font-mono flex items-center space-x-1">
+                                <span>YES (Execute Tool)</span>
+                                <i class="fa-solid fa-arrow-down"></i>
+                            </div>
+
+                            <!-- Guardrail 3: Tool Input Args -->
+                            <div data-node-id="guard-tool-args" onclick="selectElement('guard-tool-args')" class="cursor-pointer group bg-rose-950/90 border border-rose-500/60 rounded-full px-3 py-1 flex items-center space-x-2 text-xs hover:border-rose-400 shadow-md transition-all hover:scale-105">
+                                <i class="fa-solid fa-shield-halved text-rose-400 shield-pulse"></i>
+                                <span class="font-mono text-rose-200 text-[11px]">V3: ToolInputSchema Check</span>
+                            </div>
+
+                            <!-- NODE 3: TOOLS -->
+                            <div data-node-id="node-tools" onclick="selectElement('node-tools')" class="cursor-pointer group relative bg-slate-900 border-2 border-blue-500/60 hover:border-blue-400 rounded-xl p-3 w-full text-center shadow-xl hover:scale-105 transition-all">
+                                <div class="text-[10px] text-blue-400 font-mono mb-0.5">LANGGRAPH NODE 3</div>
+                                <div class="font-bold text-xs text-slate-100 flex items-center justify-center space-x-2">
+                                    <i class="fa-solid fa-gears text-amber-400"></i>
+                                    <span>Execute External Tools</span>
+                                </div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">Database SQL, Weather API, Python Sandbox</div>
+                            </div>
+
+                            <!-- Guardrail 4: Tool Return -->
+                            <div data-node-id="guard-tool-output" onclick="selectElement('guard-tool-output')" class="cursor-pointer group bg-rose-950/90 border border-rose-500/60 rounded-full px-3 py-1 flex items-center space-x-2 text-xs hover:border-rose-400 shadow-md transition-all hover:scale-105">
+                                <i class="fa-solid fa-shield-halved text-rose-400"></i>
+                                <span class="font-mono text-rose-200 text-[11px]">V4: ToolResultSanitizer</span>
+                            </div>
+
+                            <!-- Loop Back to Reasoner -->
+                            <div data-node-id="loop-back" onclick="selectElement('loop-back')" class="cursor-pointer border border-dashed border-emerald-500/80 bg-emerald-950/30 hover:bg-emerald-950/60 rounded-lg p-2 text-center text-xs text-emerald-300 transition-all flex items-center space-x-2">
+                                <i class="fa-solid fa-rotate-left"></i>
+                                <span>Return Tool Output to Reasoner Context</span>
+                            </div>
+                        </div>
+
+                        <!-- RIGHT BRANCH: RESPONSE FORMATTER & EVALUATOR NODE -->
+                        <div class="flex flex-col items-center space-y-3 pl-2">
+                            <div class="text-xs text-emerald-400 font-mono flex items-center space-x-1">
+                                <span>NO (Synthesize Draft)</span>
+                                <i class="fa-solid fa-arrow-down"></i>
+                            </div>
+
+                            <!-- Guardrail 5: Output Schema -->
+                            <div data-node-id="guard-output" onclick="selectElement('guard-output')" class="cursor-pointer group bg-rose-950/90 border border-rose-500/60 rounded-full px-3 py-1 flex items-center space-x-2 text-xs hover:border-rose-400 shadow-md transition-all hover:scale-105">
+                                <i class="fa-solid fa-shield-halved text-rose-400 shield-pulse"></i>
+                                <span class="font-mono text-rose-200 text-[11px]">V5: DraftResponseSchema</span>
+                            </div>
+
+                            <!-- NODE 4: SYNTHESIZER -->
+                            <div data-node-id="node-synthesizer" onclick="selectElement('node-synthesizer')" class="cursor-pointer group relative bg-slate-900 border-2 border-blue-500/60 hover:border-blue-400 rounded-xl p-3 w-full text-center shadow-xl hover:scale-105 transition-all">
+                                <div class="text-[10px] text-blue-400 font-mono mb-0.5">LANGGRAPH NODE 4</div>
+                                <div class="font-bold text-xs text-slate-100 flex items-center justify-center space-x-2">
+                                    <i class="fa-solid fa-pen-to-square text-emerald-400"></i>
+                                    <span>Synthesize Draft Response</span>
+                                </div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">Formulates draft candidate answer for evaluation</div>
+                            </div>
+
+                            <div class="h-3 w-0.5 bg-slate-700"></div>
+
+                            <!-- NODE 5: EVALUATOR / JUDGE NODE -->
+                            <div data-node-id="node-evaluator" onclick="selectElement('node-evaluator')" class="cursor-pointer group relative bg-slate-900 border-2 border-purple-500/80 hover:border-purple-400 rounded-xl p-3.5 w-full text-center shadow-xl hover:scale-105 transition-all">
+                                <div class="text-[10px] text-purple-400 font-mono mb-0.5">LANGGRAPH NODE 5 (CRITIC / JUDGE)</div>
+                                <div class="font-bold text-xs text-slate-100 flex items-center justify-center space-x-2">
+                                    <i class="fa-solid fa-gavel text-purple-400"></i>
+                                    <span>Evaluator Node (Secondary LLM)</span>
+                                </div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">Evaluates semantic accuracy & goal completeness</div>
+                            </div>
+
+                            <!-- Guardrail 6: EvaluationResult Pydantic Schema -->
+                            <div data-node-id="guard-evaluator-schema" onclick="selectElement('guard-evaluator-schema')" class="cursor-pointer group bg-rose-950/90 border border-rose-500/60 rounded-full px-3 py-1 flex items-center space-x-2 text-xs hover:border-rose-400 shadow-md transition-all hover:scale-105">
+                                <i class="fa-solid fa-shield-halved text-rose-400"></i>
+                                <span class="font-mono text-rose-200 text-[11px]">V6: EvaluationResultSchema</span>
+                            </div>
+
+                            <!-- EVALUATOR CONDITIONAL EDGE -->
+                            <div data-node-id="edge-judge-conditional" onclick="selectElement('edge-judge-conditional')" class="cursor-pointer group bg-amber-950/90 border-2 border-amber-500/80 rounded-lg px-3 py-1.5 text-center hover:border-amber-400 transition-all shadow-md w-full">
+                                <div class="text-[10px] text-amber-400 font-mono uppercase tracking-wider">Judge Decision Router</div>
+                                <div class="text-xs font-bold text-amber-200">Goal Completely Satisfied?</div>
+                            </div>
+
+                            <div class="w-full grid grid-cols-2 gap-2 pt-1">
+                                <!-- CRITIQUE REJECT LOOP -->
+                                <div data-node-id="loop-critique" onclick="selectElement('loop-critique')" class="cursor-pointer border border-dashed border-purple-500/80 bg-purple-950/30 hover:bg-purple-950/60 rounded-lg p-2 text-center text-[11px] text-purple-300 transition-all flex flex-col items-center justify-center space-y-1">
+                                    <span class="text-rose-400 font-mono font-bold text-[10px]">NO (Under Retry Limit)</span>
+                                    <div class="flex items-center space-x-1 text-purple-300">
+                                        <i class="fa-solid fa-rotate-left"></i>
+                                        <span>Loop Critique Feedback</span>
+                                    </div>
+                                </div>
+
+                                <!-- APPROVED END -->
+                                <div class="flex flex-col items-center justify-center space-y-1">
+                                    <span class="text-emerald-400 font-mono text-[10px] font-bold">YES (Approved)</span>
+                                    <div data-node-id="end" onclick="selectElement('end')" class="cursor-pointer group relative bg-indigo-950/80 border-2 border-indigo-500/80 hover:border-indigo-400 rounded-full px-3 py-1.5 flex items-center space-x-1.5 shadow-lg hover:scale-105 transition-all">
+                                        <i class="fa-solid fa-flag-checkered text-indigo-400 text-xs"></i>
+                                        <span class="font-bold text-xs text-indigo-200">END / CLIENT</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Right Detail Sidebar Panel -->
+            <div class="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-slate-800 bg-slate-900 flex flex-col h-auto lg:h-full flex-shrink-0">
+                <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+                    <h3 class="font-bold text-slate-200 flex items-center space-x-2">
+                        <i class="fa-solid fa-magnifying-glass text-blue-400"></i>
+                        <span>Inspector Panel</span>
+                    </h3>
+                    <span id="selected-type-badge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-900/60 text-blue-300 border border-blue-700/50">INSPECTOR READY</span>
+                </div>
+
+                <div class="p-5 flex-1 overflow-y-auto space-y-4" id="inspector-content">
+                    <!-- Default State -->
+                    <div id="inspector-default" class="text-center py-12 text-slate-500 space-y-3">
+                        <i class="fa-solid fa-hand-pointer text-4xl text-slate-600"></i>
+                        <p class="text-xs leading-relaxed max-w-xs mx-auto">Click on any node, edge router, or Pydantic shield guardrail in the diagram to inspect its schema rules, state mutations, and implementation details.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: EXECUTION SIMULATOR -->
+        <div id="tab-simulator" class="tab-content hidden h-full flex flex-col p-6 overflow-y-auto">
+            <div class="max-w-6xl mx-auto w-full flex flex-col space-y-6">
+
+                <!-- Simulator Control Bar -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="space-y-1">
+                        <h2 class="font-bold text-lg text-slate-100 flex items-center space-x-2">
+                            <i class="fa-solid fa-terminal text-emerald-400"></i>
+                            <span>Hermes Agent Step-by-Step Execution Simulator</span>
+                        </h2>
+                        <p class="text-xs text-slate-400">Watch state transition through Reasoner, Tool Execution, and the Evaluator Judge LLM Node.</p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="simStep()" id="sim-step-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold text-xs flex items-center space-x-2 shadow transition-all">
+                            <i class="fa-solid fa-forward-step"></i>
+                            <span>Step Forward</span>
+                        </button>
+                        <button onclick="simReset()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs flex items-center space-x-1 border border-slate-700 transition-all">
+                            <i class="fa-solid fa-rotate-right"></i>
+                            <span>Reset</span>
+                        </button>
+                        <button onclick="toggleErrorInjection()" id="sim-error-btn" class="px-3 py-2 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded-lg font-semibold text-xs flex items-center space-x-1 transition-all">
+                            <i class="fa-solid fa-bug"></i>
+                            <span id="error-btn-text">Inject Bad Tool Arg</span>
+                        </button>
+                        <button onclick="toggleCritiqueTrigger()" id="sim-critique-btn" class="px-3 py-2 bg-purple-950 hover:bg-purple-900 text-purple-300 border border-purple-800 rounded-lg font-semibold text-xs flex items-center space-x-1 transition-all">
+                            <i class="fa-solid fa-gavel"></i>
+                            <span id="critique-btn-text">Inject Poor Draft (Trigger Critique Loop)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Simulation Progress Stepper -->
+                <div class="grid grid-cols-6 gap-2">
+                    <div id="sim-step-1" class="border border-slate-800 bg-slate-900/80 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 transition-all">
+                        <span class="text-[10px] font-mono text-slate-500">STEP 1</span>
+                        <span class="font-bold text-xs text-slate-300">Parse Input</span>
+                        <span class="text-[10px] text-rose-400 font-mono">Pydantic V1</span>
+                    </div>
+                    <div id="sim-step-2" class="border border-slate-800 bg-slate-900/80 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 transition-all">
+                        <span class="text-[10px] font-mono text-slate-500">STEP 2</span>
+                        <span class="font-bold text-xs text-slate-300">Reasoner</span>
+                        <span class="text-[10px] text-blue-400 font-mono">LangGraph</span>
+                    </div>
+                    <div id="sim-step-3" class="border border-slate-800 bg-slate-900/80 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 transition-all">
+                        <span class="text-[10px] font-mono text-slate-500">STEP 3</span>
+                        <span class="font-bold text-xs text-slate-300">Tool Exec</span>
+                        <span class="text-[10px] text-amber-400 font-mono">Pydantic V3</span>
+                    </div>
+                    <div id="sim-step-4" class="border border-slate-800 bg-slate-900/80 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 transition-all">
+                        <span class="text-[10px] font-mono text-slate-500">STEP 4</span>
+                        <span class="font-bold text-xs text-slate-300">Draft Response</span>
+                        <span class="text-[10px] text-emerald-400 font-mono">Synthesizer</span>
+                    </div>
+                    <div id="sim-step-5" class="border border-slate-800 bg-slate-900/80 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 transition-all">
+                        <span class="text-[10px] font-mono text-slate-500">STEP 5</span>
+                        <span class="font-bold text-xs text-slate-300">Judge LLM Node</span>
+                        <span class="text-[10px] text-purple-400 font-mono">Evaluator</span>
+                    </div>
+                    <div id="sim-step-6" class="border border-slate-800 bg-slate-900/80 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 transition-all">
+                        <span class="text-[10px] font-mono text-slate-500">STEP 6</span>
+                        <span class="font-bold text-xs text-slate-300">Final / Loop</span>
+                        <span class="text-[10px] text-indigo-400 font-mono">Client Return</span>
+                    </div>
+                </div>
+
+                <!-- Simulation Output Terminal & Code View -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Execution Logs Window -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <span class="font-bold text-xs text-slate-300 flex items-center space-x-2">
+                                <i class="fa-solid fa-terminal text-emerald-400"></i>
+                                <span>Execution Logs</span>
+                            </span>
+                            <span id="sim-status" class="text-xs font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">READY</span>
+                        </div>
+                        <div id="sim-logs" class="code-block p-4 rounded-xl text-xs space-y-2 h-64 overflow-y-auto font-mono text-slate-300 leading-relaxed border border-slate-950">
+                            <div class="text-slate-500">// Ready to start simulation. Click "Step Forward".</div>
+                        </div>
+                    </div>
+
+                    <!-- Schema & State Inspector Window -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <span class="font-bold text-xs text-slate-300 flex items-center space-x-2">
+                                <i class="fa-solid fa-code text-blue-400"></i>
+                                <span>Active Pydantic Schema / State Payload</span>
+                            </span>
+                            <span id="schema-status-badge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800">NOT ACTIVE</span>
+                        </div>
+                        <div id="sim-schema-code" class="code-block p-4 rounded-xl text-xs h-64 overflow-y-auto font-mono text-slate-300 leading-relaxed border border-slate-950">
+                            <span class="text-slate-500">// Active schema payload will display here at each step.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Guardrail vs Evaluator Comparison Box -->
+                <div class="bg-gradient-to-r from-purple-950/40 via-slate-900 to-slate-900 border border-purple-900/50 rounded-2xl p-6 space-y-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="p-2.5 bg-purple-600/20 border border-purple-500/40 rounded-xl text-purple-400 text-xl">
+                            <i class="fa-solid fa-scale-balanced"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-100">Dual-Layer Validation Architecture: Pydantic vs. Evaluator LLM</h3>
+                            <p class="text-xs text-slate-400">How structural guardrails and semantic quality evaluation complement each other in Hermes.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <div class="bg-slate-950/80 border border-slate-800 p-4 rounded-xl space-y-2">
+                            <span class="font-mono text-rose-400 font-bold uppercase flex items-center space-x-2">
+                                <i class="fa-solid fa-code"></i>
+                                <span>Layer 1: Structural & Syntactic (Pydantic)</span>
+                            </span>
+                            <p class="text-slate-300 leading-relaxed">
+                                Checks field types, min/max bounds, required keys, JSON format, and string schemas. Runs deterministically with zero token costs and microsecond latency.
+                            </p>
+                            <div class="text-[11px] text-rose-300 font-mono bg-rose-950/40 p-2 rounded border border-rose-900/50">
+                                Failure caught: Missing key 'summary', temperature string passed instead of float.
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-950/80 border border-slate-800 p-4 rounded-xl space-y-2">
+                            <span class="font-mono text-purple-400 font-bold uppercase flex items-center space-x-2">
+                                <i class="fa-solid fa-gavel"></i>
+                                <span>Layer 2: Semantic & Quality (Judge LLM)</span>
+                            </span>
+                            <p class="text-slate-300 leading-relaxed">
+                                Checks goal completeness, factual accuracy, absence of hallucinations, and compliance with user instructions. Operates on clean context window with rubric scoring.
+                            </p>
+                            <div class="text-[11px] text-purple-300 font-mono bg-purple-950/40 p-2 rounded border border-purple-900/50">
+                                Failure caught: JSON schema is valid, but draft forgot to answer second half of prompt.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- TAB 3: PYDANTIC GUARDRAILS -->
+        <div id="tab-pydantic" class="tab-content hidden h-full p-6 overflow-y-auto">
+            <div class="max-w-6xl mx-auto space-y-6">
+
+                <div>
+                    <h2 class="font-bold text-lg text-slate-100 flex items-center space-x-2">
+                        <i class="fa-solid fa-shield-halved text-rose-500"></i>
+                        <span>Pydantic v2 Guardrails at Every Data Boundary</span>
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">Explore how Hermes uses strict schema models to eliminate malformed JSON, invalid arguments, and context pollution.</p>
+                </div>
+
+                <!-- 5 Guardrail Cards Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <!-- Guardrail 1 -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold font-mono text-rose-400 bg-rose-950 px-2 py-0.5 rounded border border-rose-800">GUARDRAIL 1</span>
+                            <span class="text-xs text-slate-400">Entrypoint</span>
+                        </div>
+                        <h3 class="font-bold text-slate-100 text-base">User Request Sanitization</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Validates user prompt inputs before LLM tokenization. Enforces maximum character lengths, validates client session IDs, and strips harmful injections.
+                        </p>
+                        <div class="code-block p-3 rounded-lg text-xs text-slate-300">
+<span class="text-purple-400">class</span> <span class="text-yellow-300">UserRequestSchema</span>(<span class="text-blue-400">BaseModel</span>):<br>
+&nbsp;&nbsp;query: <span class="text-blue-300">str</span> = <span class="text-green-300">Field</span>(min_length=<span class="text-orange-400">3</span>, max_length=<span class="text-orange-400">2000</span>)<br>
+&nbsp;&nbsp;user_id: <span class="text-blue-300">UUID4</span><br>
+&nbsp;&nbsp;permissions: <span class="text-blue-300">List[str]</span>
+                        </div>
+                    </div>
+
+                    <!-- Guardrail 2 -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold font-mono text-rose-400 bg-rose-950 px-2 py-0.5 rounded border border-rose-800">GUARDRAIL 2</span>
+                            <span class="text-xs text-slate-400">LangGraph State</span>
+                        </div>
+                        <h3 class="font-bold text-slate-100 text-base">State Contract (`HermesState`)</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            LangGraph nodes mutate a central state dictionary. Pydantic ensures nodes never pollute memory with invalid types or broken history sequences.
+                        </p>
+                        <div class="code-block p-3 rounded-lg text-xs text-slate-300">
+<span class="text-purple-400">class</span> <span class="text-yellow-300">HermesState</span>(<span class="text-blue-400">BaseModel</span>):<br>
+&nbsp;&nbsp;messages: <span class="text-blue-300">List[ChatMessage]</span><br>
+&nbsp;&nbsp;tool_calls: <span class="text-blue-300">List[ToolCallRequest]</span> = []<br>
+&nbsp;&nbsp;retry_count: <span class="text-blue-300">int</span> = <span class="text-orange-400">0</span>
+                        </div>
+                    </div>
+
+                    <!-- Guardrail 3 -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold font-mono text-rose-400 bg-rose-950 px-2 py-0.5 rounded border border-rose-800">GUARDRAIL 3</span>
+                            <span class="text-xs text-slate-400">Tool Execution</span>
+                        </div>
+                        <h3 class="font-bold text-slate-100 text-base">Tool Argument Validation</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            When LLMs output JSON to trigger tools (e.g., SQL queries, API calls), Pydantic parses arguments. If invalid, catches `ValidationError` and feeds error string back to LLM for auto-retry.
+                        </p>
+                        <div class="code-block p-3 rounded-lg text-xs text-slate-300">
+<span class="text-purple-400">class</span> <span class="text-yellow-300">DatabaseQueryArgs</span>(<span class="text-blue-400">BaseModel</span>):<br>
+&nbsp;&nbsp;table_name: <span class="text-blue-300">Literal</span>[<span class="text-green-300">"users"</span>, <span class="text-green-300">"orders"</span>]<br>
+&nbsp;&nbsp;limit: <span class="text-blue-300">int</span> = <span class="text-green-300">Field</span>(default=<span class="text-orange-400">10</span>, le=<span class="text-orange-400">100</span>)
+                        </div>
+                    </div>
+
+                    <!-- Guardrail 4 -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold font-mono text-rose-400 bg-rose-950 px-2 py-0.5 rounded border border-rose-800">GUARDRAIL 4</span>
+                            <span class="text-xs text-slate-400">Tool Return</span>
+                        </div>
+                        <h3 class="font-bold text-slate-100 text-base">Tool Result Sanitization</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Third-party APIs can return bloated payloads, HTML, or credentials. Pydantic cleans and structures raw output before appending it back into LLM memory.
+                        </p>
+                        <div class="code-block p-3 rounded-lg text-xs text-slate-300">
+<span class="text-purple-400">class</span> <span class="text-yellow-300">ToolResultPayload</span>(<span class="text-blue-400">BaseModel</span>):<br>
+&nbsp;&nbsp;status_code: <span class="text-blue-300">int</span><br>
+&nbsp;&nbsp;data: <span class="text-blue-300">Dict[str, Any]</span><br>
+&nbsp;&nbsp;sanitized_summary: <span class="text-blue-300">str</span>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        <!-- TAB 4: CODE BLUEPRINT -->
+        <div id="tab-code" class="tab-content hidden h-full p-6 overflow-y-auto">
+            <div class="max-w-5xl mx-auto space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="font-bold text-lg text-slate-100">Hermes Harness Production Code Blueprint</h2>
+                        <p class="text-xs text-slate-400">Complete reference implementation combining LangGraph state graph with Pydantic v2 schemas and Evaluator Judge node.</p>
+                    </div>
+                    <button onclick="copyCode()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700 flex items-center space-x-1 font-mono transition-all">
+                        <i class="fa-regular fa-copy"></i>
+                        <span id="copy-btn-text">Copy Python Code</span>
+                    </button>
+                </div>
+
+                <div class="code-block rounded-2xl p-5 text-xs text-slate-200 overflow-x-auto border border-slate-800 leading-relaxed font-mono" id="python-code-content">
+<pre><code><span class="text-slate-500"># hermes_agent_harness.py - LangGraph + Pydantic + Evaluator Judge Pattern</span>
+<span class="text-purple-400">from</span> typing <span class="text-purple-400">import</span> List, Dict, Any, Literal, Optional
+<span class="text-purple-400">from</span> pydantic <span class="text-purple-400">import</span> BaseModel, Field, ValidationError
+<span class="text-purple-400">from</span> langgraph.graph <span class="text-purple-400">import</span> StateGraph, END
+
+<span class="text-slate-500"># ==========================================
+# 1. PYDANTIC SCHEMAS (STRUCTURAL & JUDGE)
+# ==========================================</span>
+
+<span class="text-purple-400">class</span> <span class="text-yellow-300">UserRequest</span>(<span class="text-blue-400">BaseModel</span>):
+    query: <span class="text-blue-300">str</span> = <span class="text-green-300">Field</span>(..., min_length=<span class="text-orange-400">2</span>, max_length=<span class="text-orange-400">1000</span>)
+
+<span class="text-purple-400">class</span> <span class="text-yellow-300">EvaluationResult</span>(<span class="text-blue-400">BaseModel</span>):
+    <span class="text-slate-500">"""Pydantic schema for the Evaluator Node (Judge LLM)."""</span>
+    is_satisfactory: <span class="text-blue-300">bool</span> = <span class="text-green-300">Field</span>(description=<span class="text-green-300">"True if candidate answer completely fulfills user goal."</span>)
+    score: <span class="text-blue-300">float</span> = <span class="text-green-300">Field</span>(ge=<span class="text-orange-400">0.0</span>, le=<span class="text-orange-400">1.0</span>)
+    critique_feedback: <span class="text-blue-300">Optional[str]</span> = <span class="text-green-300">Field</span>(default=<span class="text-purple-400">None</span>, description=<span class="text-green-300">"Actionable feedback if unsatisfactory."</span>)
+
+<span class="text-purple-400">class</span> <span class="text-yellow-300">HermesState</span>(<span class="text-blue-400">BaseModel</span>):
+    <span class="text-slate-500">"""LangGraph central state model enforced by Pydantic."""</span>
+    query: <span class="text-blue-300">str</span>
+    messages: <span class="text-blue-300">List[Dict[str, Any]]</span> = []
+    pending_tool_call: <span class="text-blue-300">Optional[Dict[str, Any]]</span> = <span class="text-purple-400">None</span>
+    tool_results: <span class="text-blue-300">List[Dict[str, Any]]</span> = []
+    draft_response: <span class="text-blue-300">Optional[str]</span> = <span class="text-purple-400">None</span>
+    eval_result: <span class="text-blue-300">Optional[EvaluationResult]</span> = <span class="text-purple-400">None</span>
+    retry_count: <span class="text-blue-300">int</span> = <span class="text-orange-400">0</span>
+    max_retries: <span class="text-blue-300">int</span> = <span class="text-orange-400">3</span>
+
+<span class="text-slate-500"># ==========================================
+# 2. LANGGRAPH NODES & EVALUATOR NODE
+# ==========================================</span>
+
+<span class="text-purple-400">def</span> <span class="text-blue-400">agent_reasoner_node</span>(state: HermesState) -> Dict[str, Any]:
+    <span class="text-slate-500"># Worker LLM plans tool call or generates response</span>
+    <span class="text-purple-400">pass</span>
+
+<span class="text-purple-400">def</span> <span class="text-blue-400">evaluator_node</span>(state: HermesState) -> Dict[str, Any]:
+    <span class="text-slate-500">"""Dedicated Judge LLM evaluating draft response against original goal."""</span>
+    prompt = <span class="text-green-300">f"GOAL: {state.query}\nDRAFT: {state.draft_response}"</span>
+    
+    <span class="text-slate-500"># Call secondary LLM forcing EvaluationResult output schema</span>
+    result: EvaluationResult = judge_llm.with_structured_output(EvaluationResult).invoke(prompt)
+    
+    <span class="text-purple-400">if</span> <span class="text-purple-400">not</span> result.is_satisfactory:
+        <span class="text-slate-500"># Inject critique feedback back into context for re-try</span>
+        critique_msg = {<span class="text-green-300">"role"</span>: <span class="text-green-300">"user"</span>, <span class="text-green-300">"content"</span>: <span class="text-green-300">f"CRITIQUE: {result.critique_feedback}"</span>}
+        <span class="text-purple-400">return</span> {
+            <span class="text-green-300">"eval_result"</span>: result,
+            <span class="text-green-300">"retry_count"</span>: state.retry_count + <span class="text-orange-400">1</span>,
+            <span class="text-green-300">"messages"</span>: state.messages + [critique_msg]
+        }
+    <span class="text-purple-400">return</span> {<span class="text-green-300">"eval_result"</span>: result}
+
+<span class="text-purple-400">def</span> <span class="text-blue-400">judge_decision_router</span>(state: HermesState) -> str:
+    <span class="text-purple-400">if</span> state.eval_result <span class="text-purple-400">and</span> state.eval_result.is_satisfactory:
+        <span class="text-purple-400">return</span> <span class="text-green-300">"end"</span>
+    <span class="text-purple-400">if</span> state.retry_count >= state.max_retries:
+        <span class="text-purple-400">return</span> <span class="text-green-300">"end"</span>  <span class="text-slate-500"># Exit to avoid infinite loop</span>
+    <span class="text-purple-400">return</span> <span class="text-green-300">"retry_reasoner"</span>
+
+<span class="text-slate-500"># ==========================================
+# 3. BUILD GRAPH
+# ==========================================</span>
+
+workflow = StateGraph(HermesState)
+workflow.add_node(<span class="text-green-300">"reasoner"</span>, agent_reasoner_node)
+workflow.add_node(<span class="text-green-300">"evaluator"</span>, evaluator_node)
+
+workflow.add_conditional_edges(
+    <span class="text-green-300">"evaluator"</span>,
+    judge_decision_router,
+    {<span class="text-green-300">"end"</span>: END, <span class="text-green-300">"retry_reasoner"</span>: <span class="text-green-300">"reasoner"</span>}
+)
+</code></pre>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Data structure for diagram elements inspector details
+        const detailsData = {
+            'start': {
+                title: 'ENTRYPOINT: User Prompt',
+                type: 'SYSTEM ENTRYPOINT',
+                badgeBg: 'bg-emerald-950 text-emerald-300 border-emerald-800',
+                desc: 'Client submits user query into the Hermes Agent Harness.',
+                pydantic: 'Raw wire payload before model processing.',
+                stateMutation: 'Initializes raw input dictionary.'
+            },
+            'guard-input': {
+                title: 'Guardrail 1: UserRequestSchema',
+                type: 'PYDANTIC VALIDATION SHIELD',
+                badgeBg: 'bg-rose-950 text-rose-300 border-rose-800',
+                desc: 'Enforces strict input length constraints, strips potential prompt injection attacks, and validates caller authentication session tokens.',
+                pydantic: 'UserRequestSchema(query: str, user_id: UUID4, permissions: List[str])',
+                stateMutation: 'Ensures invalid requests fail fast before token consumption.'
+            },
+            'node-parser': {
+                title: 'Node 1: Receive & Sanitize',
+                type: 'LANGGRAPH NODE',
+                badgeBg: 'bg-blue-950 text-blue-300 border-blue-800',
+                desc: 'Extracts validated prompt text and constructs initial system message context.',
+                pydantic: 'Validates input payload matches expected UserRequest typing.',
+                stateMutation: 'Appends user message object to HermesState["messages"].'
+            },
+            'guard-state-init': {
+                title: 'Guardrail 2: HermesState Integrity',
+                type: 'PYDANTIC VALIDATION SHIELD',
+                badgeBg: 'bg-rose-950 text-rose-300 border-rose-800',
+                desc: 'Validates that the initialized state matches the central Pydantic contract model before hitting LLM reasoner.',
+                pydantic: 'HermesState(messages: List[ChatMessage], tool_calls: List[ToolCall])',
+                stateMutation: 'Guarantees valid state dictionary structure.'
+            },
+            'node-reasoner': {
+                title: 'Node 2: LLM Reasoner (Worker Model)',
+                type: 'LANGGRAPH NODE',
+                badgeBg: 'bg-blue-950 text-blue-300 border-blue-800',
+                desc: 'Fast/cost-effective LLM evaluates global context, memory history, tools, and previous critique feedback to plan actions.',
+                pydantic: 'Validates response structure against AgentReasoningOutput model.',
+                stateMutation: 'Updates pending_tool_call or candidate draft_response in state.'
+            },
+            'edge-conditional': {
+                title: 'Conditional Edge Router',
+                type: 'LANGGRAPH ROUTER',
+                badgeBg: 'bg-amber-950 text-amber-300 border-amber-800',
+                desc: 'Inspects state. If pending_tool_call is present, routes to Node 3 (Tool Runner). Otherwise routes to Node 4 (Draft Synthesizer).',
+                pydantic: 'Checks presence and validity of pending_tool_call field.',
+                stateMutation: 'None (Pure routing predicate function).'
+            },
+            'guard-tool-args': {
+                title: 'Guardrail 3: Tool Input Validation',
+                type: 'PYDANTIC VALIDATION SHIELD',
+                badgeBg: 'bg-rose-950 text-rose-300 border-rose-800',
+                desc: 'CRITICAL GUARDRAIL: Validates LLM-generated JSON tool arguments against function Pydantic models BEFORE executing tools.',
+                pydantic: 'WeatherToolInput(location: str, unit: Enum["celsius", "fahrenheit"])',
+                stateMutation: 'If ValidationError occurs, routes back to reasoner with error log for auto-retry loop.'
+            },
+            'node-tools': {
+                title: 'Node 3: Execute External Tools',
+                type: 'LANGGRAPH NODE',
+                badgeBg: 'bg-blue-950 text-blue-300 border-blue-800',
+                desc: 'Executes validated external function (API, Database query, or Python code interpreter).',
+                pydantic: 'Tool parameters guaranteed type-safe by Guardrail V3.',
+                stateMutation: 'Captures execution raw return object.'
+            },
+            'guard-tool-output': {
+                title: 'Guardrail 4: Tool Return Sanitizer',
+                type: 'PYDANTIC VALIDATION SHIELD',
+                badgeBg: 'bg-rose-950 text-rose-300 border-rose-800',
+                desc: 'Sanitizes external API response to prevent sensitive data leaks and context bloat.',
+                pydantic: 'ToolOutputSchema(status: int, sanitized_data: Dict)',
+                stateMutation: 'Appends sanitized response to tool_results.'
+            },
+            'loop-back': {
+                title: 'State Mutation Loop Back',
+                type: 'LANGGRAPH RECURSIVE EDGE',
+                badgeBg: 'bg-emerald-950 text-emerald-300 border-emerald-800',
+                desc: 'Returns execution result back to LLM Reasoner so it can inspect tool results and continue planning.',
+                pydantic: 'Guarantees updated state complies with HermesState schema.',
+                stateMutation: 'Clears pending_tool_call, adds result to tool_results.'
+            },
+            'guard-output': {
+                title: 'Guardrail 5: Draft Response Schema',
+                type: 'PYDANTIC VALIDATION SHIELD',
+                badgeBg: 'bg-rose-950 text-rose-300 border-rose-800',
+                desc: 'Forces model draft response into structured format before passing to Evaluator Judge Node.',
+                pydantic: 'DraftResponseSchema(summary: str, sources: List[str])',
+                stateMutation: 'Populates state.draft_response.'
+            },
+            'node-synthesizer': {
+                title: 'Node 4: Synthesize Draft Response',
+                type: 'LANGGRAPH NODE',
+                badgeBg: 'bg-blue-950 text-blue-300 border-blue-800',
+                desc: 'Formats complete tool observations into candidate text draft for evaluation.',
+                pydantic: 'Structured draft format enforced.',
+                stateMutation: 'Sets draft_response state.'
+            },
+            'node-evaluator': {
+                title: 'Node 5: Evaluator Node (Judge LLM)',
+                type: 'EVALUATOR / JUDGE NODE',
+                badgeBg: 'bg-purple-950 text-purple-300 border-purple-800',
+                desc: 'Secondary high-reasoning LLM (or clean context prompt) acts as quality gatekeeper. Evaluates semantic accuracy, completeness, and goal alignment without confirmation bias.',
+                pydantic: 'Outputs strictly typed EvaluationResult schema.',
+                stateMutation: 'Sets eval_result, increments retry_count if unsatisfactory.'
+            },
+            'guard-evaluator-schema': {
+                title: 'Guardrail 6: EvaluationResult Schema',
+                type: 'PYDANTIC VALIDATION SHIELD',
+                badgeBg: 'bg-rose-950 text-rose-300 border-rose-800',
+                desc: 'Ensures Judge LLM outputs structured evaluation payload rather than unstructured chat text.',
+                pydantic: 'EvaluationResult(is_satisfactory: bool, score: float, critique_feedback: str)',
+                stateMutation: 'Enforces structured quality feedback.'
+            },
+            'edge-judge-conditional': {
+                title: 'Judge Decision Router',
+                type: 'LANGGRAPH ROUTER',
+                badgeBg: 'bg-amber-950 text-amber-300 border-amber-800',
+                desc: 'Evaluates state.eval_result. If approved (or max_retries exceeded), routes to END. Otherwise routes to Feedback Loop.',
+                pydantic: 'Inspects EvaluationResult.is_satisfactory and retry_count.',
+                stateMutation: 'Determines graph flow termination or retry.'
+            },
+            'loop-critique': {
+                title: 'Critique Feedback Loop',
+                type: 'LANGGRAPH REFLECTION LOOP',
+                badgeBg: 'bg-purple-950 text-purple-300 border-purple-800',
+                desc: 'Appends Judge critique instructions to messages and loops back to Node 2 (Reasoner) for self-correction.',
+                pydantic: 'Guarantees updated state complies with HermesState schema.',
+                stateMutation: 'Appends critique user message into state.messages.'
+            },
+            'end': {
+                title: 'END: Return to Client',
+                type: 'SYSTEM EXIT',
+                badgeBg: 'bg-indigo-950 text-indigo-300 border-indigo-800',
+                desc: 'Graph execution terminates and sends verified structured response back to client API.',
+                pydantic: 'Guaranteed valid client JSON payload.',
+                stateMutation: 'Final state archived.'
+            }
+        };
+
+        let simCurrentStep = 0;
+        let simInjectError = false;
+        let simInjectCritique = false;
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.add('hidden');
+            });
+
+            const target = document.getElementById(`tab-${tabId}`);
+            if (target) {
+                target.classList.remove('hidden');
+            }
+
+            const tabs = ['diagram', 'simulator', 'pydantic', 'code'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-btn-${t}`);
+                if (btn) {
+                    if (t === tabId) {
+                        btn.className = "px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-all bg-blue-600 text-white shadow-sm";
+                    } else {
+                        btn.className = "px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-all text-slate-400 hover:text-slate-200";
+                    }
+                }
+            });
+        }
+
+        function selectElement(key) {
+            const data = detailsData[key];
+            if (!data) return;
+
+            // Highlight active element styling
+            document.querySelectorAll('[data-node-id]').forEach(el => {
+                el.classList.remove('ring-2', 'ring-blue-400', 'ring-offset-2', 'ring-offset-slate-950');
+            });
+
+            const clickedEl = document.querySelector(`[data-node-id="${key}"]`);
+            if (clickedEl) {
+                clickedEl.classList.add('ring-2', 'ring-blue-400', 'ring-offset-2', 'ring-offset-slate-950');
+            }
+
+            const badgeEl = document.getElementById('selected-type-badge');
+            if (badgeEl) {
+                badgeEl.textContent = data.type;
+                badgeEl.className = `text-[10px] font-mono px-2 py-0.5 rounded border ${data.badgeBg}`;
+            }
+
+            const contentEl = document.getElementById('inspector-content');
+            if (contentEl) {
+                contentEl.innerHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <h4 class="font-bold text-base text-slate-100">${data.title}</h4>
+                            <p class="text-xs text-slate-400 mt-1 leading-relaxed">${data.desc}</p>
+                        </div>
+
+                        <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 space-y-1.5">
+                            <span class="text-[10px] font-mono font-bold text-rose-400 uppercase flex items-center space-x-1">
+                                <i class="fa-solid fa-shield-halved"></i>
+                                <span>Pydantic Schema Rule</span>
+                            </span>
+                            <p class="font-mono text-xs text-rose-200 bg-rose-950/30 p-2 rounded border border-rose-900/40 font-semibold break-all">${data.pydantic}</p>
+                        </div>
+
+                        <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 space-y-1.5">
+                            <span class="text-[10px] font-mono font-bold text-blue-400 uppercase flex items-center space-x-1">
+                                <i class="fa-solid fa-database"></i>
+                                <span>State Mutation</span>
+                            </span>
+                            <p class="text-xs text-slate-300 leading-relaxed">${data.stateMutation}</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function toggleErrorInjection() {
+            simInjectError = !simInjectError;
+            const btnText = document.getElementById('error-btn-text');
+            const btn = document.getElementById('sim-error-btn');
+
+            if (simInjectError) {
+                btnText.textContent = "Bad Tool Arg Active (Will fail Pydantic)";
+                btn.className = "px-3 py-2 bg-rose-600 text-white rounded-lg font-semibold text-xs flex items-center space-x-1 transition-all shadow-lg";
+            } else {
+                btnText.textContent = "Inject Bad Tool Arg";
+                btn.className = "px-3 py-2 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded-lg font-semibold text-xs flex items-center space-x-1 transition-all";
+            }
+        }
+
+        function toggleCritiqueTrigger() {
+            simInjectCritique = !simInjectCritique;
+            const btnText = document.getElementById('critique-btn-text');
+            const btn = document.getElementById('sim-critique-btn');
+
+            if (simInjectCritique) {
+                btnText.textContent = "Poor Draft Active (Will trigger Judge Critique)";
+                btn.className = "px-3 py-2 bg-purple-600 text-white rounded-lg font-semibold text-xs flex items-center space-x-1 transition-all shadow-lg";
+            } else {
+                btnText.textContent = "Inject Poor Draft (Trigger Judge Critique Loop)";
+                btn.className = "px-3 py-2 bg-purple-950 hover:bg-purple-900 text-purple-300 border border-purple-800 rounded-lg font-semibold text-xs flex items-center space-x-1 transition-all";
+            }
+        }
+
+        function simReset() {
+            simCurrentStep = 0;
+            document.getElementById('sim-status').textContent = "READY";
+            document.getElementById('sim-status').className = "text-xs font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800";
+            document.getElementById('sim-logs').innerHTML = '<div class="text-slate-500">// Ready to start simulation. Click "Step Forward".</div>';
+            document.getElementById('sim-schema-code').innerHTML = '<span class="text-slate-500">// Schema details will display here at each step.</span>';
+            document.getElementById('schema-status-badge').textContent = "NOT ACTIVE";
+            
+            for (let i = 1; i <= 6; i++) {
+                const el = document.getElementById(`sim-step-${i}`);
+                if (el) el.className = "border border-slate-800 bg-slate-900/80 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 transition-all";
+            }
+        }
+
+        function simStep() {
+            if (simCurrentStep >= 6) {
+                simReset();
+            }
+            simCurrentStep++;
+
+            for (let i = 1; i <= 6; i++) {
+                const el = document.getElementById(`sim-step-${i}`);
+                if (!el) continue;
+                if (i === simCurrentStep) {
+                    el.className = "border-2 border-blue-500 bg-blue-950/40 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 transition-all shadow-lg scale-105";
+                } else if (i < simCurrentStep) {
+                    el.className = "border border-emerald-800 bg-emerald-950/30 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 transition-all opacity-80";
+                } else {
+                    el.className = "border border-slate-800 bg-slate-900/80 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 transition-all opacity-50";
+                }
+            }
+
+            const logs = document.getElementById('sim-logs');
+            const schemaCode = document.getElementById('sim-schema-code');
+            const schemaBadge = document.getElementById('schema-status-badge');
+
+            if (simCurrentStep === 1) {
+                document.getElementById('sim-status').textContent = "RUNNING";
+                logs.innerHTML += `<div><span class="text-blue-400">[ENTRY]</span> Received query: "What is the weather in Tokyo?"</div>`;
+                logs.innerHTML += `<div><span class="text-rose-400">[PYDANTIC V1]</span> UserRequestSchema validation... <span class="text-emerald-400">PASSED</span></div>`;
+                
+                schemaBadge.textContent = "VALIDATING USER REQUEST";
+                schemaCode.innerHTML = `
+<span class="text-purple-400">class</span> <span class="text-yellow-300">UserRequest</span>(<span class="text-blue-400">BaseModel</span>):
+    query: <span class="text-blue-300">str</span> = <span class="text-green-300">"What is the weather in Tokyo?"</span>
+<span class="text-emerald-400"># Result: Validation OK</span>`;
+            } 
+            else if (simCurrentStep === 2) {
+                logs.innerHTML += `<div><span class="text-purple-400">[REASONER]</span> LLM evaluated prompt. Decision: Request weather tool call.</div>`;
+                logs.innerHTML += `<div><span class="text-blue-400">[STATE]</span> LangGraph state updated with pending_tool_call.</div>`;
+
+                schemaBadge.textContent = "LANGGRAPH STATE INSPECTION";
+                schemaCode.innerHTML = `
+<span class="text-purple-400">HermesState</span>(
+    query=<span class="text-green-300">"What is the weather in Tokyo?"</span>,
+    pending_tool_call={
+        <span class="text-green-300">"name"</span>: <span class="text-green-300">"get_weather"</span>,
+        <span class="text-green-300">"args"</span>: { <span class="text-green-300">"location"</span>: <span class="text-green-300">"Tokyo"</span>, <span class="text-green-300">"unit"</span>: <span class="text-green-300">"${simInjectError ? 'invalid_unit' : 'celsius'}"</span> }
+    }
+)`;
+            }
+            else if (simCurrentStep === 3) {
+                if (simInjectError) {
+                    logs.innerHTML += `<div class="text-rose-400"><span class="text-rose-500">[PYDANTIC V3 ERROR]</span> ValidationError: unit must be 'celsius' or 'fahrenheit' (got 'invalid_unit').</div>`;
+                    logs.innerHTML += `<div class="text-amber-400"><span class="text-amber-500">[RETRY RECURSION]</span> Catching error, feeding error message back to Reasoner for auto-correction...</div>`;
+                    
+                    schemaBadge.textContent = "VALIDATION ERROR CAUGHT";
+                    schemaCode.innerHTML = `
+<span class="text-rose-400">pydantic.ValidationError</span>: 1 validation error for WeatherToolInput
+unit
+  Input should be 'celsius' or 'fahrenheit' [type=literal_error, input_value='invalid_unit']`;
+                } else {
+                    logs.innerHTML += `<div><span class="text-rose-400">[PYDANTIC V3]</span> Validating WeatherToolInput args... <span class="text-emerald-400">PASSED</span></div>`;
+                    logs.innerHTML += `<div><span class="text-amber-400">[TOOL RUNNER]</span> get_weather("Tokyo") executed -> {"temp": 22, "condition": "Sunny"}</div>`;
+                    
+                    schemaBadge.textContent = "TOOL EXECUTED & SANITIZED";
+                    schemaCode.innerHTML = `
+<span class="text-purple-400">WeatherToolInput</span>(location=<span class="text-green-300">"Tokyo"</span>, unit=<span class="text-green-300">"celsius"</span>)
+<span class="text-emerald-400"># Tool Output: {"temp": 22, "condition": "Sunny"}</span>`;
+                }
+            }
+            else if (simCurrentStep === 4) {
+                const draftText = simInjectCritique 
+                    ? "Weather in Tokyo is fine." 
+                    : "The weather in Tokyo is currently 22°C and clear with sunny skies.";
+                
+                logs.innerHTML += `<div><span class="text-emerald-400">[SYNTHESIZER]</span> Generated candidate draft response: "${draftText}"</div>`;
+
+                schemaBadge.textContent = "DRAFT RESPONSE FORMED";
+                schemaCode.innerHTML = `
+<span class="text-purple-400">DraftResponse</span>(
+    summary=<span class="text-green-300">"${draftText}"</span>
+)`;
+            }
+            else if (simCurrentStep === 5) {
+                if (simInjectCritique) {
+                    logs.innerHTML += `<div class="text-purple-400"><span class="text-purple-300">[JUDGE LLM]</span> Evaluated draft. Result: <span class="text-rose-400">UNSATISFACTORY (Score: 0.45)</span></div>`;
+                    logs.innerHTML += `<div class="text-amber-400"><span class="text-amber-300">[CRITIQUE FEEDBACK]</span> "Draft is overly vague. Missing specific temperature and conditions."</div>`;
+                    logs.innerHTML += `<div class="text-purple-300"><span class="text-purple-400">[LOOP ROUTER]</span> Routing back to Reasoner (Retry Count: 1/3)...</div>`;
+
+                    schemaBadge.textContent = "EVALUATOR REJECTED DRAFT";
+                    schemaCode.innerHTML = `
+<span class="text-purple-400">EvaluationResult</span>(
+    is_satisfactory=<span class="text-rose-400">False</span>,
+    score=<span class="text-orange-400">0.45</span>,
+    critique_feedback=<span class="text-green-300">"Draft is overly vague. Missing specific temperature and condition details."</span>
+)`;
+                } else {
+                    logs.innerHTML += `<div><span class="text-purple-400">[JUDGE LLM]</span> Evaluated draft. Result: <span class="text-emerald-400">APPROVED (Score: 0.98)</span></div>`;
+                    logs.innerHTML += `<div><span class="text-purple-300">[CRITIQUE]</span> Draft fully satisfies user goal without errors or hallucinations.</div>`;
+
+                    schemaBadge.textContent = "EVALUATOR APPROVED DRAFT";
+                    schemaCode.innerHTML = `
+<span class="text-purple-400">EvaluationResult</span>(
+    is_satisfactory=<span class="text-emerald-400">True</span>,
+    score=<span class="text-orange-400">0.98</span>,
+    critique_feedback=<span class="text-purple-400">None</span>
+)`;
+                }
+            }
+            else if (simCurrentStep === 6) {
+                if (simInjectCritique) {
+                    logs.innerHTML += `<div><span class="text-blue-400">[REASONER RETRY]</span> Reasoner incorporates Judge critique and regenerates detailed answer.</div>`;
+                    logs.innerHTML += `<div class="font-bold text-emerald-300">[COMPLETED] Self-correction loop resolved. Final payload approved by Judge.</div>`;
+                } else {
+                    logs.innerHTML += `<div class="font-bold text-emerald-300">[COMPLETED] Agent task complete. Return payload generated for client.</div>`;
+                }
+
+                document.getElementById('sim-status').textContent = "COMPLETED";
+                document.getElementById('sim-status').className = "text-xs font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800";
+
+                schemaBadge.textContent = "CLIENT PAYLOAD DELIVERED";
+                schemaCode.innerHTML = `
+<span class="text-purple-400">StructuredFinalResponse</span>(
+    summary=<span class="text-green-300">"It is currently 22°C and sunny in Tokyo."</span>,
+    confidence_score=<span class="text-orange-400">0.98</span>,
+    evaluator_approved=<span class="text-emerald-400">True</span>
+)`;
+            }
+
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function copyCode() {
+            const codeText = document.getElementById('python-code-content').innerText;
+            const btnText = document.getElementById('copy-btn-text');
+            
+            const textArea = document.createElement("textarea");
+            textArea.value = codeText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                btnText.textContent = "Copied!";
+                setTimeout(() => {
+                    btnText.textContent = "Copy Python Code";
+                }, 2000);
+            } catch (err) {
+                console.error("Copy failed", err);
+            }
+            document.body.removeChild(textArea);
+        }
+    </script>
+<div class="max-w-6xl mx-auto px-4 py-4">
+<div class="flex flex-wrap gap-2 text-sm">
+<a href="hermes_agentic_architecture_loop_specification.html" class="px-3 py-1.5 rounded border border-navy-200 text-navy-800 hover:border-azure-400 hover:text-azure-700 transition-colors">Hermes Architecture Spec →</a>
+<a href="inside_an_llm_interactive_visual_journey.html" class="px-3 py-1.5 rounded border border-navy-200 text-navy-800 hover:border-azure-400 hover:text-azure-700 transition-colors">Inside an LLM →</a>
+</div></div>
+</body>
+</html>

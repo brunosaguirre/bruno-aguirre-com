@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hermes Agent & Agentic Framework Architecture</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & React DOM UMD -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Mermaid.js CDN for dynamic diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                            950: '#172554'
+                        },
+                        dark: {
+                            bg: '#0b0f17',
+                            card: '#111827',
+                            border: '#1f2937',
+                            hover: '#374151'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0b0f17;
+            color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+        .glow-effect {
+            box-shadow: 0 0 25px rgba(59, 130, 246, 0.15);
+        }
+        .mermaid svg {
+            max-width: 100% !important;
+            height: auto !important;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body class="bg-dark-bg text-gray-100 min-h-screen">
+    <!-- Navigation Header -->
+    <header class="sticky top-0 z-40 border-b border-slate-800/80 backdrop-blur" style="background:rgba(15, 23, 42, 0.9);">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-10">
+        <a href="index.html" class="text-xs font-semibold text-slate-200 hover:text-blue-400">Bruno S. Aguirre</a>
+        <nav class="flex items-center gap-2 text-xs font-medium text-slate-300">
+          <a href="index.html" class="px-2 py-1 rounded hover:bg-slate-800 hover:text-white transition-colors">Home</a>
+          <a href="cv.html" class="px-2 py-1 rounded hover:bg-slate-800 hover:text-white transition-colors">CV</a>
+          <a href="inside_an_llm_interactive_visual_journey.html" class="px-2 py-1 rounded hover:bg-slate-800 hover:text-white transition-colors">LLM Article</a>
+          <a href="hermes_agent_harness_architecture.html" class="px-2 py-1 rounded hover:bg-slate-800 hover:text-white transition-colors">Harness</a>
+          <a href="hermes_agentic_architecture_loop_specification.html" class="px-2 py-1 rounded hover:bg-slate-800 hover:text-white transition-colors">Spec</a>
+        </nav>
+      </div>
+    </header>
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Icons
+        const IconPlay = () => (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        );
+        const IconPause = () => (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        );
+        const IconRefresh = () => (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        );
+        const IconCopy = () => (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+        );
+
+        function MermaidRenderer({ chart }) {
+            const containerRef = useRef(null);
+            const [error, setError] = useState(null);
+
+            useEffect(() => {
+                let isMounted = true;
+                let retryCount = 0;
+
+                const renderChart = () => {
+                    if (!containerRef.current || !isMounted) return;
+
+                    if (!containerRef.current.isConnected || containerRef.current.offsetWidth === 0) {
+                        if (retryCount < 5) {
+                            retryCount++;
+                            setTimeout(renderChart, 100);
+                            return;
+                        }
+                    }
+
+                    if (window.mermaid) {
+                        try {
+                            window.mermaid.initialize({
+                                startOnLoad: false,
+                                theme: 'dark',
+                                securityLevel: 'loose',
+                                suppressErrorRendering: true,
+                                themeVariables: {
+                                    darkMode: true,
+                                    background: '#0d111a',
+                                    primaryColor: '#1e1b4b',
+                                    primaryTextColor: '#ffffff',
+                                    primaryBorderColor: '#6366f1',
+                                    lineColor: '#818cf8',
+                                    secondaryColor: '#1e293b',
+                                    tertiaryColor: '#0f172a',
+                                    actorLineColor: '#475569',
+                                    signalColor: '#818cf8',
+                                    signalTextColor: '#e2e8f0'
+                                }
+                            });
+
+                            const id = `mermaid-svg-${Math.random().toString(36).substring(2, 9)}`;
+
+                            window.mermaid.render(id, chart, containerRef.current).then(({ svg }) => {
+                                if (isMounted && containerRef.current) {
+                                    containerRef.current.innerHTML = svg;
+                                    setError(null);
+                                }
+                            }).catch(err => {
+                                console.warn("Mermaid initial render attempt deferred, retrying...", err);
+                                if (retryCount < 3) {
+                                    retryCount++;
+                                    setTimeout(renderChart, 150);
+                                } else if (isMounted) {
+                                    setError("Diagram render deferred. Click tab or refresh to re-render.");
+                                }
+                            });
+                        } catch (e) {
+                            console.error("Mermaid initialization exception:", e);
+                            if (isMounted) setError("Mermaid initialization error.");
+                        }
+                    }
+                };
+
+                const timer = setTimeout(() => {
+                    requestAnimationFrame(renderChart);
+                }, 50);
+
+                return () => {
+                    isMounted = false;
+                    clearTimeout(timer);
+                };
+            }, [chart]);
+
+            if (error) {
+                return (
+                    <div className="p-4 bg-amber-900/20 border border-amber-500/30 text-amber-300 rounded-xl text-xs font-mono text-center">
+                        {error}
+                    </div>
+                );
+            }
+
+            return <div ref={containerRef} className="mermaid flex justify-center items-center w-full min-h-[340px] bg-[#0d111a] p-4 rounded-xl border border-indigo-900/40 shadow-xl overflow-x-auto custom-scrollbar" />;
+        }
+
+        function CodeBlock({ code, language = "markdown" }) {
+            const [copied, setCopied] = useState(false);
+
+            const handleCopy = () => {
+                const textarea = document.createElement('textarea');
+                textarea.value = code;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                } catch (err) {
+                    console.error('Copy failed', err);
+                }
+                document.body.removeChild(textarea);
+            };
+
+            return (
+                <div className="relative group rounded-xl bg-[#090d14] border border-dark-border overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-2 bg-dark-card border-b border-dark-border text-xs text-gray-400 font-mono">
+                        <span>{language.toUpperCase()} FORMAT</span>
+                        <button 
+                            onClick={handleCopy}
+                            className="flex items-center gap-1.5 px-2.5 py-1 bg-dark-bg hover:bg-dark-hover text-gray-300 rounded border border-dark-border transition text-[11px]"
+                        >
+                            <IconCopy />
+                            {copied ? 'Copied!' : 'Copy Code'}
+                        </button>
+                    </div>
+                    <pre className="p-4 font-mono text-xs text-indigo-300 leading-relaxed overflow-x-auto whitespace-pre custom-scrollbar">
+                        {code}
+                    </pre>
+                </div>
+            );
+        }
+
+        function App() {
+            // Updated active tab default to 1 for sequential ordering
+            const [activeTab, setActiveTab] = useState('architecture');
+            const [selectedNode, setSelectedNode] = useState('llm_engine');
+            const [sequenceStep, setSequenceStep] = useState(0);
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [simScenario, setSimScenario] = useState('success');
+
+            // High-Level Mermaid Markup String (Topic 2)
+            const highLevelMermaidCode = `sequenceDiagram
+    autonumber
+    actor User
+    participant Hermes as Hermes Orchestrator
+    participant Context as Context & Memory Manager
+    participant LLM as Hermes LLM Reasoner
+    participant Tools as Tool Execution Sandbox
+    participant Evaluator as Loop Evaluator
+
+    User->>Hermes: 1. Submit Request / Goal Specification
+    Hermes->>Context: 2. Assemble Prompt Context & Bind Tool Schemas
+    Context-->>Hermes: 3. Return Formatted Context Window
+    Hermes->>LLM: 4. Post Prompt & System Directives
+    LLM-->>Hermes: 5. Emit Scratchpad Thought + <tool_call> Payload
+    Hermes->>Tools: 6. Dispatch Execution Task to Sandbox
+    Tools-->>Hermes: 7. Return Observation Output (<tool_response>)
+    Hermes->>Evaluator: 8. Evaluate Completion & Safety
+    alt Goal Not Met (Requires Iteration)
+        Evaluator-->>Context: 9a. Inject Observation & Trigger Next Turn
+    else Goal Met / Terminal State
+        Evaluator-->>Hermes: 9b. Task Accomplished Signal
+        Hermes-->>User: 10. Deliver Final Response Payload
+    end`;
+
+            // Low-Level UML Sequence Code String (Topic 5)
+            const lowLevelMermaidCode = `sequenceDiagram
+    autonumber
+    participant Client as Client / Gateway
+    participant Core as Hermes Agent Core Engine
+    participant LLM_API as Local LLM REST API (127.0.0.1:11434)
+    participant RPC_Server as Unix Socket RPC Server (/tmp/hermes.sock)
+    participant Tool_Proc as MCP / PTY Sandbox Subprocess
+
+    Client->>Core: 1. POST /v1/agent/run (JSON Task Payload)
+    Core->>LLM_API: 2. POST /v1/chat/completions (Stream: true, Tools Schema)
+    LLM_API-->>Core: 3. SSE Chunk Stream: <tool_call>{"name": "exec_cmd"}</tool_call>
+    Core->>RPC_Server: 4. Connect AF_UNIX (/tmp/hermes.sock)
+    RPC_Server->>Tool_Proc: 5. JSON-RPC 2.0 Request {"method": "exec", "params": {...}}
+    Tool_Proc-->>RPC_Server: 6. PTY stdout/stderr stream + Exit Code 0
+    RPC_Server-->>Core: 7. JSON-RPC 2.0 Response {"result": {...}}
+    Core->>LLM_API: 8. POST /v1/chat/completions (Injected <tool_response>)
+    LLM_API-->>Core: 9. SSE Chunk Stream: "Task complete. Summary..."
+    Core-->>Client: 10. HTTP 200 OK Final Response Payload`;
+
+            // Sequence Step Trace Data
+            const sequenceData = [
+                {
+                    step: 1,
+                    title: "User Task Submission",
+                    from: "User",
+                    to: "Hermes Orchestrator",
+                    desc: "User submits task objective to Hermes. Core initializes run context and session state.",
+                    payload: `{\n  "task": "Analyze syslog for database errors and propose fix",\n  "session_id": "hermes-run-88219",\n  "max_turns": 5\n}`
+                },
+                {
+                    step: 2,
+                    title: "Context & Tool Schema Assembly",
+                    from: "Hermes",
+                    to: "Context Manager",
+                    desc: "Retrieves short-term chat history, long-term memory embeddings, and formats XML/JSON tool schemas.",
+                    payload: `[System Prompt Loaded]: You are Hermes, an autonomous agent.\n[Tools Bound]: [read_file, execute_bash, search_kb]\n[Context Tokens]: 1,240 / 128,000`
+                },
+                {
+                    step: 3,
+                    title: "LLM Reasoning & Plan Generation",
+                    from: "Hermes",
+                    to: "Hermes LLM Reasoner",
+                    desc: "LLM processes context and emits an internal scratchpad thought followed by structured tool invocation.",
+                    payload: `<thought>\nI need to check /var/log/syslog for database connection error events.\n</thought>\n<tool_call>\n{\n  "name": "execute_bash",\n  "arguments": {"command": "grep -i 'DB_ERR' /var/log/syslog"}\n}\n</tool_call>`
+                },
+                {
+                    step: 4,
+                    title: "Tool Execution in Local Sandbox",
+                    from: "Hermes",
+                    to: "Tool Sandbox",
+                    desc: "Hermes extracts tool arguments, validates permissions, and dispatches command to isolated runtime.",
+                    payload: `[Dispatch]: execute_bash -> PID 40921\n[Runtime Environment]: Sandboxed POSIX PTY\n[Timeout Guard]: 30s`
+                },
+                {
+                    step: 5,
+                    title: "Observation Feedback Loop",
+                    from: "Tool Sandbox",
+                    to: "Context Manager",
+                    desc: "Sandbox captures stdout, stderr, and exit code, wrapping output in `<tool_response>` tags for context injection.",
+                    payload: `<tool_response>\n{\n  "status": "success",\n  "exit_code": 0,\n  "stdout": "2026-08-07 09:12:01 DB_ERR: Connection timed out to 10.0.0.45:5432"\n}\n</tool_response>`
+                },
+                {
+                    step: 6,
+                    title: "Loop Evaluation & Final Delivery",
+                    from: "Loop Evaluator",
+                    to: "User",
+                    desc: "Evaluator confirms requirement fulfillment, terminates loop, and streams final answer back to client.",
+                    payload: `"Log analysis complete. A database timeout error occurred at 09:12:01 connecting to PostgreSQL host 10.0.0.45:5432. Recommended action: Check network route and pg_hba.conf."`
+                }
+            ];
+
+            useEffect(() => {
+                let interval;
+                if (isPlaying) {
+                    interval = setInterval(() => {
+                        setSequenceStep((prev) => (prev >= sequenceData.length - 1 ? 0 : prev + 1));
+                    }, 3000);
+                }
+                return () => clearInterval(interval);
+            }, [isPlaying]);
+
+            // Architecture Component Details (Topic 1)
+            const nodeDetails = {
+                user_input: {
+                    title: "User Task / System Prompt",
+                    type: "Input Stream Interface",
+                    desc: "The entry point for raw instructions, system personas, available tool schemas, and user constraints.",
+                    functions: ["Ingests user query and task parameters", "Binds tool definitions via XML/JSON schema", "Injects system guidelines (e.g. Hermes tool format)"]
+                },
+                context_manager: {
+                    title: "Context Manager & Assembly",
+                    type: "State Orchestrator",
+                    desc: "Maintains working memory window, formats prompt buffer, and truncates/summarizes history when approaching context limits.",
+                    functions: ["Token accounting & window management", "Short-term conversation history storage", "RAG / Long-term memory retrieval integration", "Tool Result Injection (<tool_response>)"]
+                },
+                llm_engine: {
+                    title: "Hermes Reasoner / LLM Core",
+                    type: "Cognitive Processing Engine",
+                    desc: "Foundational model trained on structured function calling (e.g. Hermes XML format `<tool_call>`). Generates inner thoughts, scratchpads, and action commands.",
+                    functions: ["Generates Reasoning Scratchpad", "Decides whether to respond directly or initiate tool calls", "Emits structured tool parameters", "Reflects on environmental observations"]
+                },
+                tool_parser: {
+                    title: "Action & Tool Parser",
+                    type: "Syntax Validator & Router",
+                    desc: "Parses model output stream in real-time to detect structured XML or JSON tool calls, separating text thoughts from execution payloads.",
+                    functions: ["Extracts `<tool_call>` payload", "Validates syntax against target schema", "Routes execution request to runtime sandbox"]
+                },
+                tool_sandbox: {
+                    title: "Tool Execution Sandbox",
+                    type: "Execution Runtime",
+                    desc: "Secure isolated runtime (Docker / POSIX PTY / MCP Stdio) that executes requested actions.",
+                    functions: ["Executes APIs, SQL, Web Search, Code Interpreters", "Captures stdout/stderr, status codes, and JSON responses", "Enforces execution timeouts & permission boundaries"]
+                },
+                loop_evaluator: {
+                    title: "Loop Evaluation & State Controller",
+                    type: "Convergence & Safety Evaluator",
+                    desc: "Evaluates whether user intent is fulfilled, if additional iterations are required, or if an error recovery sequence must be triggered.",
+                    functions: ["Verifies stop conditions (No tool calls, criteria met)", "Checks loop safety guardrails (Max turns, duplicate actions)", "Synthesizes final answer if evaluation passes", "Feeds observation back to Context Manager if iteration needed"]
+                }
+            };
+
+            // Loop Simulator Scenarios (Topic 3)
+            const simScenarios = {
+                success: {
+                    title: "Standard Multi-Turn Success",
+                    steps: [
+                        { turn: 1, state: "Planning", action: "Call `search_database`", status: "In Progress", decision: "Tool Call Required -> Iterate" },
+                        { turn: 2, state: "Observation Check", action: "Db returned 3 matching records", status: "In Progress", decision: "Information Sufficient -> Synthesize Answer" },
+                        { turn: 3, state: "Loop Evaluation", action: "Emit final user answer without tool calls", status: "Fulfilled", decision: "TERMINATE LOOP (Success)" }
+                    ]
+                },
+                error_recovery: {
+                    title: "Tool Execution Failure & Self-Correction",
+                    steps: [
+                        { turn: 1, state: "Planning", action: "Call `fetch_api(url='api/v1/users')`", status: "Failed", decision: "Error: HTTP 404 Not Found" },
+                        { turn: 2, state: "Self-Reflection", action: "Observation ingested: 404 error. LLM tries backup endpoint `api/v2/user_list`", status: "In Progress", decision: "Iterate with Refined Parameters" },
+                        { turn: 3, state: "Tool Retry", action: "Call `fetch_api(url='api/v2/user_list')`", status: "Success", decision: "HTTP 200 OK returned" },
+                        { turn: 4, state: "Loop Evaluation", action: "Format returned data for user", status: "Fulfilled", decision: "TERMINATE LOOP (Recovered)" }
+                    ]
+                },
+                max_iterations: {
+                    title: "Guardrail Circuit Breaker (Infinite Loop Prevention)",
+                    steps: [
+                        { turn: 1, state: "Planning", action: "Call `run_code`", status: "In Progress", decision: "Syntax Error in generated code" },
+                        { turn: 2, state: "Retry 1", action: "Call `run_code` with tweak", status: "In Progress", decision: "Syntax Error persists" },
+                        { turn: 3, state: "Retry 2", action: "Call `run_code` with tweak", status: "In Progress", decision: "Syntax Error persists" },
+                        { turn: 4, state: "Max Threshold Hit", action: "Max iterations (3/3) exceeded", status: "Safety Triggered", decision: "TERMINATE LOOP (Circuit Breaker: Fallback Answer)" }
+                    ]
+                }
+            };
+
+            // Topic 4 Code Snippets (Hermes Spec & Python Implementation)
+            const hermesXmlSpec = `<thought>
+I need to query the user table to check for inactive accounts.
+</thought>
+<tool_call>
+{
+  "name": "execute_sql",
+  "arguments": {
+    "query": "SELECT id, email, status FROM users WHERE status = 'inactive' LIMIT 5;"
+  }
+}
+</tool_call>`;
+
+            const hermesResponseSpec = `<tool_response>
+{
+  "status": "success",
+  "rows_returned": 2,
+  "data": [
+    {"id": 102, "email": "usr102@example.com", "status": "inactive"},
+    {"id": 105, "email": "usr105@example.com", "status": "inactive"}
+  ]
+}
+</tool_response>`;
+
+            const hermesOrchestratorCode = `import re
+import json
+
+class HermesAgentLoop:
+    def __init__(self, llm_client, tools_registry, max_turns=10):
+        self.llm = llm_client
+        self.tools = tools_registry
+        self.max_turns = max_turns
+
+    def run(self, user_prompt: str) -> str:
+        messages = [{"role": "system", "content": SYSTEM_PROMPT_WITH_TOOLS},
+                    {"role": "user", "content": user_prompt}]
+        
+        for turn in range(1, self.max_turns + 1):
+            response = self.llm.generate(messages)
+            
+            # Check for Hermes <tool_call> tags
+            tool_match = re.search(r'<tool_call>(.*?)</tool_call>', response, re.DOTALL)
+            if not tool_match:
+                # No tool call emitted -> Terminal Answer Reached
+                return response
+            
+            # Extract and parse tool payload
+            payload = json.loads(tool_match.group(1).strip())
+            tool_name = payload["name"]
+            tool_args = payload["arguments"]
+            
+            # Execute tool safely in local sandbox
+            tool_result = self.tools.execute(tool_name, tool_args)
+            
+            # Append interaction & wrap observation in <tool_response>
+            messages.append({"role": "assistant", "content": response})
+            messages.append({"role": "user", "content": f"<tool_response>{json.dumps(tool_result)}</tool_response>"})
+            
+        return "Circuit Breaker Triggered: Maximum iteration turns reached without convergence."`;
+
+            return (
+                <div className="flex flex-col min-h-screen pb-12">
+                    {/* Header */}
+                    <header className="border-b border-dark-border bg-dark-card/90 backdrop-blur sticky top-0 z-50">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center font-bold text-white shadow-lg shadow-brand-500/20">
+                                    HA
+                                </div>
+                                <div>
+                                    <h1 className="text-xl font-bold text-white flex items-center gap-2">
+                                        Hermes Agent & Framework Architecture
+                                        <span className="text-xs font-mono bg-brand-900/60 text-brand-100 border border-brand-500/30 px-2 py-0.5 rounded-full">v3.0</span>
+                                    </h1>
+                                    <p className="text-xs text-gray-400">Sequential guide to agent loops, sequence traces, loop evaluation & local IPC endpoints</p>
+                                </div>
+                            </div>
+
+                            {/* Main Navigation Tabs - Fully Ordered 1 through 5 */}
+                            <div className="flex items-center bg-dark-bg p-1 rounded-lg border border-dark-border text-xs flex-wrap gap-1 mt-4">
+                                <button 
+                                    onClick={() => setActiveTab('architecture')} 
+                                    className={`px-3 py-1.5 rounded-md font-medium transition-all ${activeTab === 'architecture' ? 'bg-brand-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    1. Internal Agent Loop
+                                </button>
+                                <button 
+                                    onClick={() => setActiveTab('sequence')} 
+                                    className={`px-3 py-1.5 rounded-md font-medium transition-all ${activeTab === 'sequence' ? 'bg-brand-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    2. Sequence Diagram (Process flow)
+                                </button>
+                                <button 
+                                    onClick={() => setActiveTab('loop_eval')} 
+                                    className={`px-3 py-1.5 rounded-md font-medium transition-all ${activeTab === 'loop_eval' ? 'bg-brand-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    3. Loop Evaluation Mechanism
+                                </button>
+                                <button 
+                                    onClick={() => setActiveTab('hermes_spec')} 
+                                    className={`px-3 py-1.5 rounded-md font-medium transition-all ${activeTab === 'hermes_spec' ? 'bg-brand-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    4. Tool Schemas & Protocol Specs
+                                </button>
+                                <button 
+                                    onClick={() => setActiveTab('local_uml')} 
+                                    className={`px-3 py-1.5 rounded-md font-medium transition-all ${activeTab === 'local_uml' ? 'bg-brand-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    5. Local Endpoints & Low-Level UML
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Main Content Body */}
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 flex-1 w-full">
+
+                        {/* TAB 1: INTERNAL AGENT LOOP */}
+                        {activeTab === 'architecture' && (
+                            <div className="space-y-6">
+                                <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                                        <div>
+                                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                                1. Internal Agent Loop Architectural Blueprint
+                                                <span className="text-xs font-mono bg-brand-900/60 text-brand-200 border border-brand-500/30 px-2.5 py-0.5 rounded">Core Layout</span>
+                                            </h2>
+                                            <p className="text-sm text-gray-400">Select any component node to inspect its functional responsibilities and context assembly pipeline.</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Architecture Interactive Blueprint Map */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                                        
+                                        {/* Diagram Canvas (8 cols) */}
+                                        <div className="lg:col-span-8 bg-dark-bg/80 border border-dark-border rounded-xl p-6 relative min-h-[500px] flex flex-col justify-between overflow-hidden">
+                                            
+                                            {/* Top Layer: Input Entry */}
+                                            <div className="flex justify-center">
+                                                <button 
+                                                    onClick={() => setSelectedNode('user_input')}
+                                                    className={`w-72 p-3.5 rounded-xl border text-center transition-all ${selectedNode === 'user_input' ? 'bg-brand-900/40 border-brand-500 text-white glow-effect' : 'bg-dark-card border-dark-border text-gray-300 hover:border-gray-600'}`}
+                                                >
+                                                    <div className="text-xs font-mono text-brand-400 uppercase tracking-wider mb-1">User Task & System Directives</div>
+                                                    <div className="text-sm font-semibold">User Task + Tool Schemas</div>
+                                                </button>
+                                            </div>
+
+                                            {/* Connector arrow */}
+                                            <div className="flex justify-center my-1 text-gray-600">
+                                                <svg className="w-6 h-6 animate-pulse text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                                            </div>
+
+                                            {/* Core Autonomous Boundary */}
+                                            <div className="border-2 border-dashed border-brand-500/30 rounded-xl p-4 bg-brand-950/10 relative">
+                                                <span className="absolute -top-3 left-4 bg-dark-bg px-2 text-xs font-mono text-brand-400 border border-brand-500/30 rounded">Autonomous Iteration Boundary</span>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                                    <button 
+                                                        onClick={() => setSelectedNode('context_manager')}
+                                                        className={`p-4 rounded-lg border text-left transition-all ${selectedNode === 'context_manager' ? 'bg-brand-900/40 border-brand-500 text-white glow-effect' : 'bg-dark-card border-dark-border text-gray-300 hover:border-gray-600'}`}
+                                                    >
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <span className="text-xs font-mono text-indigo-400">STATE & MEMORY</span>
+                                                            <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                                                        </div>
+                                                        <div className="font-bold text-sm">Context Manager</div>
+                                                        <div className="text-xs text-gray-400 mt-1">Working memory, dynamic truncation & context window layout</div>
+                                                    </button>
+
+                                                    <button 
+                                                        onClick={() => setSelectedNode('llm_engine')}
+                                                        className={`p-4 rounded-lg border text-left transition-all ${selectedNode === 'llm_engine' ? 'bg-brand-900/40 border-brand-500 text-white glow-effect' : 'bg-dark-card border-dark-border text-gray-300 hover:border-gray-600'}`}
+                                                    >
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <span className="text-xs font-mono text-brand-400">REASONING CORE</span>
+                                                            <span className="w-2 h-2 rounded-full bg-brand-500"></span>
+                                                        </div>
+                                                        <div className="font-bold text-sm">Hermes LLM Reasoner</div>
+                                                        <div className="text-xs text-gray-400 mt-1">Generates inner thoughts, scratchpad, & tool payloads</div>
+                                                    </button>
+
+                                                    <button 
+                                                        onClick={() => setSelectedNode('tool_parser')}
+                                                        className={`p-4 rounded-lg border text-left transition-all ${selectedNode === 'tool_parser' ? 'bg-brand-900/40 border-brand-500 text-white glow-effect' : 'bg-dark-card border-dark-border text-gray-300 hover:border-gray-600'}`}
+                                                    >
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <span className="text-xs font-mono text-amber-400">PARSER</span>
+                                                            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                                                        </div>
+                                                        <div className="font-bold text-sm">Action & Tool Call Parser</div>
+                                                        <div className="text-xs text-gray-400 mt-1">Validates JSON/XML tool schema & extracts invocation args</div>
+                                                    </button>
+
+                                                    <button 
+                                                        onClick={() => setSelectedNode('tool_sandbox')}
+                                                        className={`p-4 rounded-lg border text-left transition-all ${selectedNode === 'tool_sandbox' ? 'bg-brand-900/40 border-brand-500 text-white glow-effect' : 'bg-dark-card border-dark-border text-gray-300 hover:border-gray-600'}`}
+                                                    >
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <span className="text-xs font-mono text-emerald-400">EXECUTION</span>
+                                                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                        </div>
+                                                        <div className="font-bold text-sm">Tool Execution Sandbox</div>
+                                                        <div className="text-xs text-gray-400 mt-1">Runs Python, APIs, SQL, or web tools and captures stdout/errors</div>
+                                                    </button>
+                                                </div>
+
+                                                <div className="mt-4 pt-3 border-t border-dark-border/50 flex items-center justify-between text-xs text-emerald-400 font-mono">
+                                                    <div className="flex items-center gap-1">
+                                                        <svg className="w-4 h-4 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7-7m7-7H3"></path></svg>
+                                                        Observation Loop (`&lt;tool_response&gt;`)
+                                                    </div>
+                                                    <span>Injects execution output back into Context Manager</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Connector arrow */}
+                                            <div className="flex justify-center my-1 text-gray-600">
+                                                <svg className="w-6 h-6 animate-pulse text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                                            </div>
+
+                                            {/* Bottom Layer: Evaluator & Convergence */}
+                                            <div className="flex justify-center">
+                                                <button 
+                                                    onClick={() => setSelectedNode('loop_evaluator')}
+                                                    className={`w-full p-4 rounded-xl border transition-all ${selectedNode === 'loop_evaluator' ? 'bg-purple-900/30 border-purple-500 text-white glow-effect' : 'bg-dark-card border-dark-border text-gray-300 hover:border-gray-600'}`}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="text-left">
+                                                            <div className="text-xs font-mono text-purple-400 uppercase tracking-wider">Evaluation & Convergence</div>
+                                                            <div className="text-sm font-bold">Loop Evaluator & State Safety Controller</div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">Fulfills Request</span>
+                                                            <span className="text-xs text-gray-500">OR</span>
+                                                            <span className="px-2 py-1 bg-amber-500/20 text-amber-400 rounded text-xs">Triggers Next Iteration</span>
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            </div>
+
+                                        </div>
+
+                                        {/* Component Detail Inspector Panel */}
+                                        <div className="lg:col-span-4 bg-dark-card border border-dark-border rounded-xl p-6 flex flex-col justify-between">
+                                            <div>
+                                                <div className="flex items-center justify-between pb-3 border-b border-dark-border mb-4">
+                                                    <span className="text-xs font-mono text-brand-400 uppercase tracking-widest">Component Inspector</span>
+                                                    <span className="text-xs bg-brand-500/20 text-brand-300 px-2 py-0.5 rounded border border-brand-500/30">
+                                                        {nodeDetails[selectedNode].type}
+                                                    </span>
+                                                </div>
+
+                                                <h3 className="text-lg font-bold text-white mb-2">{nodeDetails[selectedNode].title}</h3>
+                                                <p className="text-sm text-gray-300 leading-relaxed mb-6">{nodeDetails[selectedNode].desc}</p>
+
+                                                <h4 className="text-xs font-mono text-gray-400 uppercase mb-3">Core Responsibilities</h4>
+                                                <ul className="space-y-2">
+                                                    {nodeDetails[selectedNode].functions.map((fn, idx) => (
+                                                        <li key={idx} className="flex items-start gap-2 text-xs text-gray-300">
+                                                            <span className="text-brand-400 mt-0.5">▸</span>
+                                                            <span>{fn}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB 2: SEQUENCE DIAGRAM (PROCESS FLOW) */}
+                        {activeTab === 'sequence' && (
+                            <div className="space-y-8">
+                                <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                                        <div>
+                                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                                2. Sequence Diagram (Process flow)
+                                                <span className="text-xs font-mono bg-indigo-900/60 text-indigo-200 border border-indigo-500/30 px-2.5 py-0.5 rounded">High-Level Agent Loop</span>
+                                            </h2>
+                                            <p className="text-sm text-gray-400">Interaction lifeline sequence tracing task dispatch, context assembly, tool execution, and loop termination.</p>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 bg-dark-bg p-1.5 rounded-lg border border-dark-border text-xs">
+                                            <button 
+                                                onClick={() => setIsPlaying(!isPlaying)}
+                                                className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-medium transition"
+                                            >
+                                                {isPlaying ? <IconPause /> : <IconPlay />}
+                                                {isPlaying ? 'Pause Auto Step' : 'Auto Step Trace'}
+                                            </button>
+                                            <button 
+                                                onClick={() => { setSequenceStep(0); setIsPlaying(false); }}
+                                                className="p-1 text-gray-400 hover:text-white rounded hover:bg-dark-border"
+                                                title="Reset Step"
+                                            >
+                                                <IconRefresh />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Visual Diagram Section */}
+                                    <div className="space-y-6">
+                                        <div className="bg-dark-bg/80 p-4 rounded-xl border border-dark-border">
+                                            <div className="text-xs font-mono text-gray-400 mb-3 flex items-center justify-between">
+                                                <span className="text-indigo-400 font-bold uppercase tracking-wider">Mermaid Rendered Sequence Chart</span>
+                                                <span>Obsidian / Markdown Compatible Format</span>
+                                            </div>
+                                            <MermaidRenderer chart={highLevelMermaidCode} />
+                                        </div>
+
+                                        {/* Step Detail Inspector & Interactive Trace */}
+                                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                                            <div className="lg:col-span-7 bg-dark-bg border border-dark-border rounded-xl p-5 flex flex-col justify-between">
+                                                <div>
+                                                    <div className="flex items-center justify-between pb-3 border-b border-dark-border mb-4">
+                                                        <span className="text-xs font-mono font-bold text-brand-400">ACTIVE TRACE STEP {sequenceData[sequenceStep].step} OF 6</span>
+                                                        <span className="text-xs font-mono bg-dark-card px-2.5 py-1 rounded text-indigo-300 border border-dark-border">
+                                                            {sequenceData[sequenceStep].from} ➔ {sequenceData[sequenceStep].to}
+                                                        </span>
+                                                    </div>
+
+                                                    <h3 className="text-lg font-bold text-white mb-2">{sequenceData[sequenceStep].title}</h3>
+                                                    <p className="text-sm text-gray-300 leading-relaxed mb-4">{sequenceData[sequenceStep].desc}</p>
+
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-xs font-mono text-gray-400 uppercase">Payload Trace Snapshot</label>
+                                                        <pre className="bg-dark-card border border-dark-border p-3.5 rounded-lg font-mono text-xs text-green-400 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-48 custom-scrollbar">
+                                                            {sequenceData[sequenceStep].payload}
+                                                        </pre>
+                                                    </div>
+                                                </div>
+
+                                                {/* Stepper buttons */}
+                                                <div className="mt-6 pt-4 border-t border-dark-border flex items-center justify-between">
+                                                    <button 
+                                                        disabled={sequenceStep === 0}
+                                                        onClick={() => setSequenceStep(prev => Math.max(0, prev - 1))}
+                                                        className="px-3.5 py-1.5 bg-dark-card border border-dark-border rounded text-xs text-gray-300 disabled:opacity-30 hover:bg-dark-hover transition"
+                                                    >
+                                                        ← Previous
+                                                    </button>
+                                                    <div className="flex gap-1.5">
+                                                        {sequenceData.map((_, i) => (
+                                                            <span 
+                                                                key={i} 
+                                                                onClick={() => { setSequenceStep(i); setIsPlaying(false); }}
+                                                                className={`w-3 h-3 rounded-full cursor-pointer transition-all ${i === sequenceStep ? 'bg-brand-500 w-6' : 'bg-dark-border hover:bg-gray-600'}`}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                    <button 
+                                                        disabled={sequenceStep === sequenceData.length - 1}
+                                                        onClick={() => setSequenceStep(prev => Math.min(sequenceData.length - 1, prev + 1))}
+                                                        className="px-3.5 py-1.5 bg-dark-card border border-dark-border rounded text-xs text-gray-300 disabled:opacity-30 hover:bg-dark-hover transition"
+                                                    >
+                                                        Next Step →
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Code / Markdown Snippet View */}
+                                            <div className="lg:col-span-5 flex flex-col justify-between">
+                                                <div className="mb-2 text-xs font-mono text-gray-400">Mermaid Markdown Source Markup</div>
+                                                <CodeBlock code={highLevelMermaidCode} language="mermaid" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB 3: LOOP EVALUATION MECHANISM */}
+                        {activeTab === 'loop_eval' && (
+                            <div className="space-y-8">
+                                <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+                                    <h2 className="text-xl font-bold text-white mb-2">3. Loop Evaluation Mechanics & Convergence Strategy</h2>
+                                    <p className="text-sm text-gray-400 mb-6 leading-relaxed">
+                                        The distinguishing element of an autonomous agentic framework is the **Evaluation Loop**. 
+                                        After every LLM inference turn, the framework evaluates output tags to decide whether to **terminate and return**, **execute tools**, or **self-correct**.
+                                    </p>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <div className="bg-dark-bg border border-dark-border rounded-lg p-5">
+                                            <div className="w-8 h-8 rounded-lg bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold mb-3">1</div>
+                                            <h3 className="font-bold text-white text-base mb-2">Syntactic Termination</h3>
+                                            <p className="text-xs text-gray-300 leading-relaxed">
+                                                Determined by output parsing. If the LLM generates a standard response <strong>without embedding any &lt;tool_call&gt; tags</strong>, the orchestrator marks the structural goal as fulfilled and routes text directly to the user.
+                                            </p>
+                                        </div>
+
+                                        <div className="bg-dark-bg border border-dark-border rounded-lg p-5">
+                                            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold mb-3">2</div>
+                                            <h3 className="font-bold text-white text-base mb-2">Observation Reflection</h3>
+                                            <p className="text-xs text-gray-300 leading-relaxed">
+                                                If tools were executed, the framework formats execution output (<code>&lt;tool_response&gt;</code>) and injects it back into the prompt stream for the next reasoning cycle.
+                                            </p>
+                                        </div>
+
+                                        <div className="bg-dark-bg border border-dark-border rounded-lg p-5">
+                                            <div className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold mb-3">3</div>
+                                            <h3 className="font-bold text-white text-base mb-2">Guardrail Breakers</h3>
+                                            <p className="text-xs text-gray-300 leading-relaxed">
+                                                Protects against infinite execution loops. Tracks Max Iterations, duplicate tool calls, context overflow, and error frequency thresholds.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Simulator Panel */}
+                                <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                                        <div>
+                                            <h3 className="text-lg font-bold text-white">Interactive Loop Evaluator Simulator</h3>
+                                            <p className="text-sm text-gray-400">Test how operational scenarios are evaluated across execution turns.</p>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 bg-dark-bg p-1 rounded-lg border border-dark-border">
+                                            <button 
+                                                onClick={() => setSimScenario('success')}
+                                                className={`px-3 py-1.5 rounded text-xs font-medium transition ${simScenario === 'success' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                                            >
+                                                Standard Success
+                                            </button>
+                                            <button 
+                                                onClick={() => setSimScenario('error_recovery')}
+                                                className={`px-3 py-1.5 rounded text-xs font-medium transition ${simScenario === 'error_recovery' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                                            >
+                                                Error Recovery
+                                            </button>
+                                            <button 
+                                                onClick={() => setSimScenario('max_iterations')}
+                                                className={`px-3 py-1.5 rounded text-xs font-medium transition ${simScenario === 'max_iterations' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                                            >
+                                                Circuit Breaker Trigger
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-dark-bg rounded-xl border border-dark-border overflow-hidden">
+                                        <div className="grid grid-cols-12 text-xs font-mono text-gray-400 bg-dark-card/80 p-3 border-b border-dark-border font-semibold">
+                                            <div className="col-span-2">TURN #</div>
+                                            <div className="col-span-3">AGENT STATE</div>
+                                            <div className="col-span-4">ACTION / OBSERVATION</div>
+                                            <div className="col-span-3 text-right">EVALUATOR DECISION</div>
+                                        </div>
+
+                                        <div className="divide-y divide-dark-border">
+                                            {simScenarios[simScenario].steps.map((step, idx) => (
+                                                <div key={idx} className="grid grid-cols-12 text-xs p-4 items-center hover:bg-dark-card/40 transition">
+                                                    <div className="col-span-2 font-mono text-brand-400 font-bold">Turn {step.turn}</div>
+                                                    <div className="col-span-3">
+                                                        <span className="px-2 py-1 bg-dark-card border border-dark-border rounded text-gray-200">
+                                                            {step.state}
+                                                        </span>
+                                                    </div>
+                                                    <div className="col-span-4 font-mono text-gray-300">
+                                                        {step.action}
+                                                    </div>
+                                                    <div className="col-span-3 text-right">
+                                                        <span className={`px-2.5 py-1 rounded-full font-semibold text-[11px] ${
+                                                            step.status === 'Fulfilled' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                                                            step.status === 'Failed' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' :
+                                                            step.status === 'Safety Triggered' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+                                                            'bg-brand-500/20 text-brand-300 border border-brand-500/30'
+                                                        }`}>
+                                                            {step.decision}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB 4: TOOL SCHEMAS & PROTOCOL SPECS */}
+                        {activeTab === 'hermes_spec' && (
+                            <div className="space-y-8">
+                                <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <span className="px-3 py-1 bg-brand-500/20 text-brand-400 border border-brand-500/30 rounded-md font-mono text-xs font-semibold">
+                                            HERMES 2/3 XML STANDARD
+                                        </span>
+                                        <h2 className="text-xl font-bold text-white">4. Tool Schemas & Protocol Specifications</h2>
+                                    </div>
+                                    <p className="text-sm text-gray-300 leading-relaxed mb-6">
+                                        Hermes uses structured XML tags (<code className="text-indigo-300">&lt;thought&gt;</code>, <code className="text-amber-300">&lt;tool_call&gt;</code>, and <code className="text-emerald-300">&lt;tool_response&gt;</code>) to isolate reasoning scratchpads from structured execution parameters.
+                                    </p>
+
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                                        {/* Thought & Tool Call Format */}
+                                        <div className="space-y-3">
+                                            <div className="text-xs font-mono text-amber-400 font-bold uppercase tracking-wider flex items-center justify-between">
+                                                <span>Model Inference Output Structure</span>
+                                                <span className="text-gray-500">`LLM &rarr; Orchestrator`</span>
+                                            </div>
+                                            <CodeBlock code={hermesXmlSpec} language="xml" />
+                                        </div>
+
+                                        {/* Tool Response Format */}
+                                        <div className="space-y-3">
+                                            <div className="text-xs font-mono text-emerald-400 font-bold uppercase tracking-wider flex items-center justify-between">
+                                                <span>Observation Payload Structure</span>
+                                                <span className="text-gray-500">`Sandbox &rarr; Context`</span>
+                                            </div>
+                                            <CodeBlock code={hermesResponseSpec} language="xml" />
+                                        </div>
+                                    </div>
+
+                                    {/* Python Core Agent Loop Implementation */}
+                                    <div className="space-y-3">
+                                        <div className="text-xs font-mono text-brand-400 font-bold uppercase tracking-wider flex items-center justify-between">
+                                            <span>Hermes Core Agent Loop Implementation</span>
+                                            <span className="text-gray-500">`python/agent_loop.py`</span>
+                                        </div>
+                                        <CodeBlock code={hermesOrchestratorCode} language="python" />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB 5: LOCAL ENDPOINTS & LOW-LEVEL UML */}
+                        {activeTab === 'local_uml' && (
+                            <div className="space-y-8">
+                                <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-md font-mono text-xs font-semibold">
+                                            ACTIVE LOCAL ENDPOINTS: YES
+                                        </span>
+                                        <h2 className="text-xl font-bold text-white">5. Local Active Endpoints & Low-Level UML Architecture</h2>
+                                    </div>
+                                    <p className="text-sm text-gray-300 leading-relaxed mb-6">
+                                        Local agent engines (like <strong>Hermes Agent</strong>) maintain active local endpoints across multiple operational channels to execute tools locally without leaking credentials or exposing insecure sockets:
+                                    </p>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                                        <div className="bg-dark-bg p-4 rounded-lg border border-dark-border">
+                                            <div className="text-xs font-mono text-indigo-400 mb-1">1. PROGRAMMATIC IPC</div>
+                                            <div className="text-sm font-bold text-white mb-2">Unix Domain Socket</div>
+                                            <div className="text-xs text-gray-400 leading-relaxed">
+                                                RPC daemon socket (<code>/tmp/hermes.sock</code>) for inter-process tool messaging.
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-dark-bg p-4 rounded-lg border border-dark-border">
+                                            <div className="text-xs font-mono text-emerald-400 mb-1">2. TOOL PROTOCOL</div>
+                                            <div className="text-sm font-bold text-white mb-2">MCP Local Server (Stdio)</div>
+                                            <div className="text-xs text-gray-400 leading-relaxed">
+                                                Model Context Protocol servers exposed via stdio JSON-RPC pipes.
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-dark-bg p-4 rounded-lg border border-dark-border">
+                                            <div className="text-xs font-mono text-brand-400 mb-1">3. LOCAL MODEL ENGINE</div>
+                                            <div className="text-sm font-bold text-white mb-2">OpenAI REST Endpoint</div>
+                                            <div className="text-xs text-gray-400 leading-relaxed">
+                                                Loopback HTTP REST endpoint (Ollama / vLLM at <code>127.0.0.1:11434</code>).
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-dark-bg p-4 rounded-lg border border-dark-border">
+                                            <div className="text-xs font-mono text-amber-400 mb-1">4. EXECUTION ISOLATION</div>
+                                            <div className="text-sm font-bold text-white mb-2">POSIX PTY Sandbox</div>
+                                            <div className="text-xs text-gray-400 leading-relaxed">
+                                                Isolated process runtime with secret scrubbing and stream capture.
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Low Level UML Sequence Chart */}
+                                    <div className="space-y-6">
+                                        <div className="bg-dark-bg/80 p-4 rounded-xl border border-dark-border">
+                                            <div className="text-xs font-mono text-gray-400 mb-3 flex items-center justify-between">
+                                                <span className="text-emerald-400 font-bold uppercase tracking-wider">Low-Level Component IPC Sequence Diagram</span>
+                                                <span>Protocols: HTTP REST, AF_UNIX, MCP Stdio, POSIX PTY</span>
+                                            </div>
+                                            <MermaidRenderer chart={lowLevelMermaidCode} />
+                                        </div>
+
+                                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                                            {/* Left Column: Markdown Code Block */}
+                                            <div className="lg:col-span-6">
+                                                <div className="mb-2 text-xs font-mono text-gray-400">Mermaid UML Sequence Markup</div>
+                                                <CodeBlock code={lowLevelMermaidCode} language="mermaid" />
+                                            </div>
+
+                                            {/* Right Column: Payload Schema Descriptions */}
+                                            <div className="lg:col-span-6 space-y-4">
+                                                <div className="bg-dark-bg border border-dark-border rounded-xl p-5">
+                                                    <h3 className="text-sm font-bold text-white mb-2 font-mono flex items-center justify-between">
+                                                        <span>AF_UNIX JSON-RPC 2.0 Payload</span>
+                                                        <span className="text-xs text-indigo-400">IPC Socket Layer</span>
+                                                    </h3>
+                                                    <pre className="bg-dark-card p-3 rounded text-xs font-mono text-indigo-300 overflow-x-auto">
+{`// Socket: /tmp/hermes.sock
+{
+  "jsonrpc": "2.0",
+  "id": "req-9041",
+  "method": "tools.execute",
+  "params": {
+    "tool_name": "execute_bash",
+    "timeout_ms": 15000,
+    "env": { "PATH": "/usr/local/bin:/usr/bin" },
+    "args": { "command": "grep ERROR /var/log/syslog" }
+  }
+}`}
+                                                    </pre>
+                                                </div>
+
+                                                <div className="bg-dark-bg border border-dark-border rounded-xl p-5">
+                                                    <h3 className="text-sm font-bold text-white mb-2 font-mono flex items-center justify-between">
+                                                        <span>Local Model REST SSE Stream</span>
+                                                        <span className="text-xs text-emerald-400">HTTP Loopback</span>
+                                                    </h3>
+                                                    <pre className="bg-dark-card p-3 rounded text-xs font-mono text-emerald-300 overflow-x-auto">
+{`// POST http://127.0.0.1:11434/v1/chat/completions
+data: {
+  "id": "chatcmpl-3091",
+  "choices": [{
+    "delta": {
+      "content": "<tool_call>{\\"name\\": \\"execute_bash\\"}</tool_call>"
+    }
+  }]
+}`}
+                                                    </pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                    </main>
+
+                    {/* Footer */}
+                    <footer className="mt-auto border-t border-dark-border py-6 text-center text-xs text-gray-500">
+                        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div>Hermes Agentic Architecture Specification & Process Flow</div>
+                            <div className="font-mono">Obsidian & Mermaid.js Standard Compatible</div>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+<div class="max-w-6xl mx-auto px-4 py-4">
+<div class="flex flex-wrap gap-2 text-sm">
+<a href="hermes_agent_harness_architecture.html" class="px-3 py-1.5 rounded border border-navy-200 text-navy-800 hover:border-azure-400 hover:text-azure-700 transition-colors">Hermes Agent Harness →</a>
+<a href="inside_an_llm_interactive_visual_journey.html" class="px-3 py-1.5 rounded border border-navy-200 text-navy-800 hover:border-azure-400 hover:text-azure-700 transition-colors">Inside an LLM →</a>
+</div></div>
+</body>
+</html>
